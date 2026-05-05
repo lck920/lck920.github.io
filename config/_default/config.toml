@@ -1,7 +1,7 @@
 # Change baseurl before deploy
 baseurl = "https://lck920.github.io/"
 locale  = "en-us"
-title   = "DLLM"
+title   = "Delay No More"
 
 # Theme i18n support
 # See all available values at https://github.com/CaiJimmy/hugo-theme-stack/tree/master/i18n

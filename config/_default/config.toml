@@ -15,4 +15,4 @@ hasCJKLanguage = false
 disqusShortname = "DLLM"
 
 [pagination]
-    pagerSize = 5
+    pagerSize = 10

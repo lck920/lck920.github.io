@@ -1,7 +1,7 @@
 # Change baseurl before deploy
 baseurl = "https://lck920.github.io/"
 locale  = "en-us"
-title   = "DLLM Blog"
+title   = "DLLM"
 
 # Theme i18n support
 # See all available values at https://github.com/CaiJimmy/hugo-theme-stack/tree/master/i18n
@@ -12,7 +12,7 @@ defaultContentLanguage = "en"
 hasCJKLanguage = false
 
 # Change it to your Disqus shortname before using
-disqusShortname = "DLLM Blog"
+disqusShortname = "DLLM"
 
 [pagination]
     pagerSize = 5

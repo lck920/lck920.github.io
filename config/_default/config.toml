@@ -1,5 +1,5 @@
 # Change baseurl before deploy
-baseurl = "https://lck920.github.io/"
+baseurl = "lck920.github.io"
 locale  = "en-us"
 title   = "Delay No More"
 

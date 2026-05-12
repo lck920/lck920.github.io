@@ -1,5 +1,5 @@
 ---
-title: "Part 1 — Homelab Setup: Building a Business-in-a-Box"
+title: "Part 1 - Homelab Setup: Building a Business-in-a-Box"
 date: 2026-05-12
 description: "A cybersecurity homelab built as a small enterprise environment with Active Directory, MailHog, Wazuh, Security Onion, and Kali Linux."
 tags:
@@ -11,7 +11,7 @@ categories:
   - homelab writeup
 ---
 
-Instead of spinning up a collection of random virtual machines and calling it a homelab, I wanted to build something more meaningful — a small enterprise-like environment that resembles how a real corporate network is structured.
+Instead of spinning up a collection of random virtual machines and calling it a homelab, I wanted to build something more meaningful - a small enterprise-like environment that resembles how a real corporate network is structured.
 
 I call this the **Business-in-a-Box** homelab, inspired by the **Project Security E101** course. The goal is to simulate a corporate domain network called **Project X**, complete with internal services, security monitoring, and an attacker node for running controlled offensive exercises.
 
@@ -33,7 +33,7 @@ The architecture includes:
 - **Internal email services**
 - **Offensive security systems**
 
-### Figure 1 — Overall Homelab Architecture
+### Figure 1 - Overall Homelab Architecture
 
 ![Overall Homelab Architecture](network-topology.png)
 
@@ -53,13 +53,13 @@ Each **VM** represents a specific role commonly found in a corporate environment
 
 | **Hostname** | **IP Address** | **Operating System** | **Role** |
 |---|---:|---|---|
-| **project-x-dc** | **10.0.0.5** | Windows Server 2025 | **Domain Controller (AD/DNS/DHCP)** |
-| **project-x-corp-svr** | **10.0.0.8** | Ubuntu Server 22.04 | **Jumpbox & Email Server** |
-| **project-x-sec-box** | **10.0.0.10** | Ubuntu Server 22.04 | **Wazuh SIEM Server** |
-| **project-x-win-client** | **10.0.0.100** | Windows 11 Enterprise | **Domain Workstation** |
-| **project-x-linux-client** | **10.0.0.101** | Ubuntu Desktop 22.04 | **Developer Workstation** |
-| **project-x-sec-work** | **10.0.0.103** | Security Onion | **Network Monitoring Workstation** |
-| **project-x-attacker** | **10.0.0.50** | Kali Linux 2024.4 | **Attacker Node** |
+| `project-x-dc` | **10.0.0.5** | Windows Server 2025 | **Domain Controller (AD/DNS/DHCP)** |
+| `project-x-corp-server` | **10.0.0.8** | Ubuntu Server 22.04 | **Jumpbox & Email Server** |
+| `project-x-sec-box` | **10.0.0.10** | Ubuntu Server 22.04 | **Wazuh SIEM Server** |
+| `project-x-win-client` | **10.0.0.100** | Windows 11 Enterprise | **Domain Workstation** |
+| `project-x-linux-client` | **10.0.0.101** | Ubuntu Desktop 22.04 | **Developer Workstation** |
+| `project-x-sec-work` | **10.0.0.103** | Security Onion | **Network Monitoring Workstation** |
+| `project-x-attacker` | **10.0.0.50** | Kali Linux 2024.4 | **Attacker Node** |
 
 The minimum specifications per **VM** range from **1 CPU / 2 GB RAM** for lighter machines, such as the corporate server and attacker node, up to **2 CPU / 4 GB RAM** for heavier systems such as the domain controller, Windows client, and security server.
 
@@ -131,7 +131,7 @@ MailHog replaces the need for a real external email provider. This means email-b
 | **Web Interface** | **8025** | Allows captured emails, headers, and content to be inspected |
 | **REST API** | N/A | Enables automated interaction for scripted attack scenarios |
 
-### Figure 2 — MailHog Email Simulation Workflow
+### Figure 2 - MailHog Email Simulation Workflow
 
 ![MailHog Email Simulation Workflow](mailhog-email-workflow.png)
 
@@ -153,7 +153,7 @@ On the **`project-x-linux-client`** side, a dedicated Bash script called **`emai
 
 The defensive side of the homelab is built around **Wazuh** and **Security Onion**. Wazuh provides host-based monitoring, while Security Onion provides network-level visibility.
 
-### Figure 3 — Security Monitoring and Defence Architecture
+### Figure 3 - Security Monitoring and Defence Architecture
 
 ![Security Monitoring and Defence Architecture](wazuh-monitoring-topology.png)
 
@@ -165,9 +165,9 @@ The defensive side of the homelab is built around **Wazuh** and **Security Onion
 
 The three core components are:
 
-- **Wazuh Agents** — installed on `project-x-win-client`, `project-x-linux-client`, and `project-x-dc`. They monitor host-level activity such as system logs, file changes, and rootkit detection.
-- **Wazuh Server** — receives all agent data, decodes logs, and runs them against a ruleset library to flag indicators of compromise.
-- **Wazuh Indexer and Dashboard** — stores telemetry data and provides a web interface for visualising alerts and performing forensic investigation.
+- **Wazuh Agents** - installed on `project-x-win-client`, `project-x-linux-client`, and `project-x-dc`. They monitor host-level activity such as system logs, file changes, and rootkit detection.
+- **Wazuh Server** - receives all agent data, decodes logs, and runs them against a ruleset library to flag indicators of compromise.
+- **Wazuh Indexer and Dashboard** - stores telemetry data and provides a web interface for visualising alerts and performing forensic investigation.
 
 During attack simulations, Wazuh is used to observe the digital footprint left behind at each stage of the attack lifecycle, from initial access to persistence.
 
@@ -237,10 +237,10 @@ Weak credentials are intentionally configured throughout the lab to make the att
 | **Account** | **Password** | **Host** |
 |---|---|---|
 | **Administrator** | `@Deeboodah1!` | **project-x-dc** |
-| **johnd@corp.project-x-dc.com** | `@password123!` | **project-x-win-client** |
-| **janed@linux-client** | `@password123!` | **project-x-linux-client** |
-| **sec-work@sec-box** | `@password123!` | **project-x-sec-box** |
-| **attacker@attacker** | `attacker` | **project-x-attacker** |
+| `johnd@corp.project-x-dc.com` | `@password123!` | **project-x-win-client** |
+| `janed@linux-client` | `@password123!` | **project-x-linux-client** |
+| `sec-work@sec-box` | `@password123!` | **project-x-sec-box** |
+| `attacker@attacker` | `attacker` | **project-x-attacker** |
 
 ### Suggested screenshots to include
 

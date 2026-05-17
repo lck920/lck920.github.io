@@ -5,10 +5,11 @@ description: "Deliberately weakening enterprise services inside the Business-in-
 tags:
   - cybersecurity
   - homelab
-  - enterprise101
+  - e101
 categories:
   - cybersecurity
   - homelab writeup
+  - enterprise 101
 ---
 
 With the lab fully built, the next step is to deliberately introduce insecure configurations - the kind of misconfigurations and legacy settings that still appear in real enterprise networks more often than expected.

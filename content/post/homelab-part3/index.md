@@ -6,11 +6,12 @@ description: "Simulating a full cyber attack lifecycle inside the Business-in-a-
 tags:
   - cybersecurity
   - homelab
-  - enterprise101
+  - e101
 
 categories:
   - cybersecurity
   - homelab writeup
+  - enterprise101
 ---
 
 With the vulnerable environment fully configured, the next step is to simulate a realistic end-to-end cyber attack against the **Project X** network.

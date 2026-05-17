@@ -9,7 +9,7 @@ tags:
 categories:
   - cybersecurity
   - homelab writeup
-  - enterprise 101
+  - enterprise101
 ---
 
 Instead of spinning up a collection of random virtual machines and calling it a homelab, I wanted to build something more meaningful - a small enterprise-like environment that resembles how a real corporate network is structured.

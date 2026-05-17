@@ -9,7 +9,7 @@ tags:
 categories:
   - cybersecurity
   - homelab writeup
-  - enterprise 101
+  - enterprise101
 ---
 
 With the lab fully built, the next step is to deliberately introduce insecure configurations - the kind of misconfigurations and legacy settings that still appear in real enterprise networks more often than expected.

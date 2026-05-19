@@ -1,4 +1,19 @@
-# Attack 1 — MiTM: ARP Cache Poisoning
+---
+title: "Part 5 - Attack 1 - MiTM: ARP Cache Poisoning"
+date: 2026-05-19
+description: "Demonstrating ARP cache poisoning using Ettercap and Wireshark inside the homelab environment."
+
+tags:
+  - cybersecurity
+  - homelab
+  - mitm
+  - na101
+
+categories:
+  - cybersecurity
+  - homelab writeup
+  - networks and attacks 101
+---
 
 ## Prerequisites
 

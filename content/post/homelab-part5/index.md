@@ -23,9 +23,9 @@ Before starting, make sure the following are in place:
 2. `project-x-win-client` is turned on and configured
 3. `project-x-attacker` is turned on
 
-## Network Topology
-
-The attack involves two machines — the attacker (`project-x-attacker`) positioned on the same local network as the victim (`project-x-win-client`). Both sit within the `10.0.0.0/24` subnet.
+## Scenario
+ 
+In this scenario, the attacker (`project-x-attacker`) is already positioned on the same local network as the victim (`project-x-win-client`). Both machines sit within the `10.0.0.0/24` subnet. The attacker exploits the lack of authentication in the ARP protocol to associate their MAC address with the IP of a legitimate device on the network — silently inserting themselves between the victim and the rest of the network without either side noticing.
 
 ## Likeliness Meter
 

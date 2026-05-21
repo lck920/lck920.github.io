@@ -25,9 +25,9 @@ Before starting, make sure the following are in place:
 5. `project-x-attacker` is turned on
 
 
-## Network Topology
-
-This attack involves the attacker (`project-x-attacker`) gaining SSH access to the DNS container running on `project-x-corp-svr` (`10.0.0.8`), poisoning the zone file, and then serving a fake web page to the victim (`project-x-win-client`) when they navigate to `www.projectxcorp.com`.
+## Scenario
+ 
+In this scenario, the attacker (`project-x-attacker`) has identified an exposed SSH port on the corporate server (`10.0.0.8`) and uses it as an entry point into the DNS container running on that host. Once inside the container, the attacker modifies the internal BIND9 zone file to redirect `www.projectxcorp.com` to a fake web server they control — causing any victim on the network (`project-x-win-client`) who navigates to that domain to land on a cloned login page without any visible warning.
 
 ## Likeliness Meter
 

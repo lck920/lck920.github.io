@@ -18,16 +18,16 @@ categories:
 
 ## Prerequisites
 
-Before starting, make sure the following are in place:
+Before starting, I made sure the following were in place:
 
 1. VirtualBox or VMware Workstation Pro installed
-2. `project-x-win-client` is turned on and configured
-3. `project-x-corp-svr` is powered on with the `web-svr` container running
-4. `project-x-attacker` is turned on
+2. My `project-x-win-client` is turned on and configured
+3. My `project-x-corp-svr` is powered on with the `web-svr` container running
+4. My `project-x-attacker` is turned on
 
 ## Scenario
 
-In this scenario, the attacker doesn't need to be on the same network as the victim, or exploit any particular vulnerability. Instead, they obtain a list of email addresses and password hashes from a known data breach — simulated here using [HaveIBeenPwned](https://haveibeenpwned.com) — and attempt to crack them offline. Once the hash is cracked, the plaintext password is tested against the internal ProjectX web portal. Because John Doe reuses passwords across services, the same credential that was leaked in a third-party breach opens the door to the corporate portal too.
+In this scenario, I didn't need to be on the same network as the victim, or exploit any particular vulnerability. Instead, I obtained a list of email addresses and password hashes from a known data breach — simulated here using [HaveIBeenPwned](https://haveibeenpwned.com) — and attempted to crack them offline. Once I cracked the hash, I tested the plaintext password against my internal ProjectX web portal. Because John Doe reuses passwords across services, the same credential that was leaked in a third-party breach opened the door to my corporate portal too.
 
 ## Likeliness Meter
 
@@ -39,7 +39,7 @@ Credential stuffing will happen. Password reuse is extremely common — most use
 
 ## Background: Credential Stuffing
 
-We've covered brute-force attacks and password spraying in earlier parts of this series. Credential stuffing is a related but distinct technique — and in many ways, the most realistic of the three.
+I covered brute-force attacks and password spraying in earlier parts of this series. Credential stuffing is a related but distinct technique — and in many ways, the most realistic of the three.
 
 **Credential stuffing** is a type of cyber attack where an attacker uses stolen username and password combinations — obtained from known data breaches or leaks — to attempt unauthorised access to other accounts. The core assumption the attacker is banking on is **password reuse**: the belief that if a user's email and password were leaked from Service A, there's a reasonable chance the same credentials will work on Service B, C, and D.
 
@@ -66,62 +66,65 @@ Successful credential stuffing can lead to:
 
 ### The Objective
 
-We're assuming `john.doe@projectxcorp.com` has appeared in a third-party data breach. We have his email address and an associated MD5 password hash. The goal is to crack that hash and use the plaintext password to log into the internal ProjectX web portal.
+I assumed `john.doe@projectxcorp.com` had appeared in a third-party data breach. I had his email address and an associated MD5 password hash. My goal was to crack that hash and use the plaintext password to log into the internal ProjectX web portal.
 
 ### Step 1 — Identify the Hash
 
-In a real-world attack, the attacker would acquire breach data from underground forums, dark web marketplaces, or public breach dumps. For this exercise, we simulate discovering the following entry from a breach dataset:
+In a real-world attack, an attacker would acquire breach data from underground forums, dark web marketplaces, or public breach dumps. For this exercise, I simulated discovering the following entry from a breach dataset:
 
 ```
 john.doe@projectxcorp.com:3ddaeb82fbba964fb3461d4e4f1342eb
 ```
 
-The hash `3ddaeb82fbba964fb3461d4e4f1342eb` is what we need to crack. Before throwing it at a cracker, we can narrow down the hash type. MD5 hashes are 32 hexadecimal characters — this matches.
+The hash `3ddaeb82fbba964fb3461d4e4f1342eb` was what I needed to crack. Before throwing it at a cracker, I narrowed down the hash type. MD5 hashes are 32 hexadecimal characters — this matched perfectly.
 
 ### Step 2 — Attempt to Crack the Hash with Hashcat
 
-On `project-x-attacker`, use **Hashcat** to crack the hash. The `-m 0` flag specifies MD5 mode, and we point it at the `rockyou.txt` wordlist:
+On `project-x-attacker`, I used **Hashcat** to crack the hash. The `-m 0` flag specifies MD5 mode, and I pointed it at the `rockyou.txt` wordlist:
 
 ```bash
 hashcat -m 0 3ddaeb82fbba964fb3461d4e4f1342eb /usr/share/wordlists/rockyou.txt
 ```
 
-> ⚠️ Note: Hashcat requires GPU acceleration to run at full speed. If the VM only has 2GB of RAM assigned, modern versions of hashcat may not run successfully. In that case, skip to the online cracker in the next step.
+> ⚠️ Note: Hashcat requires GPU acceleration to run at full speed. Because my VM only had 2GB of RAM assigned, modern versions of hashcat did not run successfully. So I skipped to the online cracker in the next step.
 
 ### Step 3 — Use an Online Hash Cracker (Fallback)
 
-In this scenario, Hashcat does not work for due to VM resource constraints, we can navigate to **[CrackStation](https://crackstation.net)** in the Kali browser and paste the hash into the input field:
+Since Hashcat didn't work due to my VM resource constraints, I navigated to **[CrackStation](https://crackstation.net)** in my Kali browser and pasted the hash into the input field:
 
 ```
 3ddaeb82fbba964fb3461d4e4f1342eb
 ```
 
-CrackStation will return the hash type (MD5) and the cracked plaintext password.
+CrackStation returned the hash type (MD5) and the cracked plaintext password.
 
 ![Browser on `project-x-attacker` showing CrackStation with the hash entered and the result returned — the MD5 hash type and the cracked plaintext password clearly visible in the results table.](screenshot1.png)
+*CrackStation instantly converting my target MD5 hash back into a plaintext password.*
 
-We now have John's plaintext password.
+I now had John's plaintext password.
 
 ### Step 4 — Log into the ProjectX Web Portal
 
-Make sure `project-x-corp-svr` is powered on and the `web-svr` container is running. Also confirm both machines are on the `project-x-network` NAT Network.
+I made sure `project-x-corp-svr` was powered on and the `web-svr` container was running. I also confirmed both machines were on my `project-x-network` NAT Network.
 
-On `project-x-win-client` (or directly from the attacker machine), open a browser and navigate to:
+On `project-x-win-client` (or directly from my attacker machine), I opened a browser and navigated to:
 
 ```
 http://10.0.0.8
 ```
 
-Enter John's credentials:
+I entered John's credentials:
 
 - **Username:** `john.doe@projectxcorp.com`
-- **Password:** (cracked plaintext from Step 2 or 3)
+- **Password:** (cracked plaintext from Step 3)
 
 ![Browser showing the ProjectX internal portal login page at `http://10.0.0.8` with `john.doe@projectxcorp.com` typed into the username field and the password entered — just before clicking login.](screenshot2.png)
+*Stuffing the freshly cracked credentials into the ProjectX portal login.*
 
 ![Browser showing the ProjectX portal logged in successfully as John Doe — the internal dashboard or welcome page visible, confirming the credential stuffing attack worked.](screenshot3.png)
+*Access granted! I was logged in as John Doe.*
 
-Access granted. John's reused password from a third-party breach opened the door to the internal corporate portal.
+Access granted. John's reused password from a third-party breach opened the door to my internal corporate portal.
 
 ## Real-World Application
 
@@ -129,8 +132,8 @@ This was a deliberately narrow scenario — a single account, a single hash, a s
 
 Attackers acquire lists of millions of breach entries, often in plaintext or weakly hashed formats. They run automated tools that test those credentials against dozens of services simultaneously — email platforms, corporate VPNs, cloud portals, banking apps. The success rate doesn't need to be high for the attack to be profitable. Even a 0.1% hit rate against a list of 10 million accounts yields 10,000 compromised logins.
 
-The lesson is the same one that comes up in almost every security awareness training, and it's worth repeating: **don't reuse passwords**. A password manager makes this trivially easy. And from the organisation's side, MFA is the most effective technical control — a cracked password is useless if a second factor is required.
+The lesson I took from this is the same one that comes up in almost every security awareness training: **don't reuse passwords**. A password manager makes this trivially easy. And from the organisation's side, MFA is the most effective technical control — a cracked password is useless if a second factor is required.
 
 ---
 
-*Next up — Creating a C2 Server, where we build a simple command and control infrastructure in Python and deploy it to a compromised machine.*
+*Next up — Creating a C2 Server, where I build a simple command and control infrastructure in Python and deploy it to a compromised machine.*

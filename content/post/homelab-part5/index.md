@@ -6,7 +6,6 @@ description: "Demonstrating ARP cache poisoning using Ettercap and Wireshark ins
 tags:
   - cybersecurity
   - homelab
-  - mitm
   - na101
 
 categories:

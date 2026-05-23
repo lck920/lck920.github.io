@@ -168,7 +168,7 @@ The compiled binary would appear in the `/dist` directory. This is why real-worl
 
 **Since I was targeting Linux, I skipped the compilation step and deployed `client.py` directly.**
 
-## Part 2 — Deploy to `project-x-linux-client`
+## Part 2 — Deploy to project-x-linux-client
 
 ### Step 5 — Serve the Client File via HTTP
 

@@ -115,8 +115,7 @@ A quick breakdown of what each part does:
 - `server.accept()` — blocks until a victim connects, then returns the connection object
 - `conn.sendall(...)` — sends a message back to the connected victim machine
 
-![nano editor on `project-x-attacker` showing the full `server.py` code with `HOST = '0.0.0.0'` and `PORT = 4444` clearly visible.](screenshot1.png)
-*Writing the `server.py` script on my Kali machine.*
+![Writing the `server.py` script on my Kali machine.](screenshot1.png)
 
 ### Step 3 — Write the Client Handler (`client.py`)
 
@@ -128,7 +127,7 @@ I created the file:
 nano client.py
 ```
 
-> ⚠️ Before saving, I made sure to update `SERVER_IP` to match my `project-x-attacker` machine's actual IP address. I ran `ip a` to check it.
+>  Before saving, I made sure to update `SERVER_IP` to match my `project-x-attacker` machine's actual IP address. I ran `ip a` to check it.
 
 Full `client.py` code:
 
@@ -152,8 +151,7 @@ A quick breakdown:
 - `s.recv(1024)` — receives up to 1024 bytes of data from the server
 - `data.decode()` — decodes the received bytes and prints the message to the terminal
 
-![nano editor showing `client.py` with `SERVER_IP` set to the attacker machine's IP address — confirming the callback target is correctly configured before saving.](screenshot2.png)
-*Writing the `client.py` dropper and setting it to call back to my attacker IP.*
+![Writing the `client.py` dropper and setting it to call back to my attacker IP.](screenshot2.png)
 
 ### Step 4 — Compile the Client into an Executable (Optional)
 
@@ -181,8 +179,7 @@ cd ~/evilc2
 python -m http.server 8000
 ```
 
-![Kali terminal showing the Python HTTP server started on port 8000 — output showing "Serving HTTP on 0.0.0.0 port 8000" confirming the file is being served and ready for download.](screenshot3.png)
-*Hosting my malicious dropper via a Python web server.*
+![Hosting my malicious dropper via a Python web server.](screenshot3.png)
 
 ### Step 6 — Start the C2 Server Listener
 
@@ -214,8 +211,7 @@ python3 client.py
 
 This simulated the victim executing what they think is a legitimate file — but is actually my C2 dropper calling home.
 
-![Terminal on `project-x-linux-client` showing the `wget` command downloading `client.py` from `10.0.0.50:8000`, followed by `python3 client.py` running — the message from the C2 server ("Hello, fellow victim") printed to the terminal, confirming the callback succeeded from the victim's side.](screenshot4.png)
-*The victim downloads and runs the dropper, receiving the message from my C2 server.*
+![The victim downloads and runs the dropper, receiving the message from my C2 server.](screenshot4.png)
 
 ### Step 8 — Confirm the Connection on the C2 Server
 
@@ -227,8 +223,7 @@ I could see the connection logged:
 [+] Connection from ('10.0.0.17', XXXXX)
 ```
 
-![Kali terminal showing the `server.py` output with `[+] Connection from ('10.0.0.17', ...)` printed — confirming the victim machine (`project-x-linux-client`) successfully called back to the C2 server. This is the payoff screenshot of the entire exercise.](screenshot5.png)
-*Success! My C2 server received the callback connection from the victim machine.*
+![My C2 server received the callback connection from the victim machine.](screenshot5.png)
 
 The C2 channel was established. My victim machine connected to my attacker's C2 server, received a command (the "Hello" message), and printed the output — a basic but complete proof-of-concept for command and control communication.
 

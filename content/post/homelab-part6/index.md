@@ -78,8 +78,7 @@ nmap -p1-5000 -Pn -sV 10.0.0.8
 
 The scan results showed a few ports of interest — notably **port 22** and **port 2222**. Port 22 is the host SSH service on `project-x-corp-svr` itself. Port 2222 is the SSH service I configured inside the DNS container.
 
-![Kali terminal showing the full Nmap scan output against `10.0.0.8` with ports 22, 2222, 53, and 80 visible — port 2222 being the standout discovery that leads us into the DNS container.](screenshot1.png)
-*My Nmap scan against `10.0.0.8` highlighting port 2222, my pathway into the DNS container.*
+![My Nmap scan against `10.0.0.8` highlighting port 2222, my pathway into the DNS container.](screenshot1.png)
 
 ### Step 2 — Brute-Force SSH into the DNS Container
 
@@ -91,8 +90,7 @@ hydra -l root -P /usr/share/wordlists/rockyou.txt ssh://10.0.0.8 -s 2222
 
 The password came back as `admin` — exactly the weak root password I set during the DNS container setup.
 
-![Kali terminal showing Hydra returning a successful hit, with 'password: november' visible in the output.](screenshot2.png)
-*Hydra easily cracking the weak root password.*
+![Hydra easily cracking the weak root password.](screenshot2.png)
 
 I logged into the DNS container:
 
@@ -101,8 +99,7 @@ ssh root@10.0.0.8 -p 2222
 # password: november
 ```
 
-![Kali terminal showing the SSH login to `10.0.0.8` on port 2222 succeeding — the container's shell prompt confirming we're inside the DNS container as root.](screenshot3.png)
-*Successfully SSH-ing into the DNS container on port 2222.*
+![Successfully SSH-ing into the DNS container on port 2222.](screenshot3.png)
 
 ### Step 3 — Post-Compromise Recon Inside the Container
 
@@ -116,8 +113,7 @@ netstat -tuln
 
 Port 53 was listening — this is a DNS server. Combined with my earlier Nmap finding, this confirmed the container was the internal DNS service for `10.0.0.8`.
 
-![Terminal inside the SSH session showing `netstat -tuln` output with port 53 (DNS) and port 2222 (SSH) clearly visible and listening.](screenshot4.png)
-*Confirming the presence of DNS services (port 53) via netstat.*
+![Confirming the presence of DNS services (port 53) via netstat.](screenshot4.png)
 
 **Check recently installed software:**
 
@@ -125,8 +121,7 @@ Port 53 was listening — this is a DNS server. Combined with my earlier Nmap fi
 grep " install " /var/log/dpkg.log
 ```
 
-![Terminal showing the `dpkg.log` grep output with `bind9` appearing in the install log — confirming the DNS server software running on this container.](screenshot5.png)
-*A quick grep through `dpkg.log` revealed BIND9 was installed.*
+![A quick grep through `dpkg.log` revealed BIND9 was installed.](screenshot5.png)
 
 Searching around confirmed **BIND9** was the DNS software in use. A quick search told me the default BIND9 configuration directory is `/etc/bind`.
 
@@ -147,8 +142,7 @@ cat /etc/bind/zones/db.projectxcorp.com
 
 The zone file showed the `A` record for `www.projectxcorp.com` currently pointing to `10.0.0.8` — the web container I set up in Part 2. This is the internal corporate portal.
 
-![Terminal showing the contents of `db.projectxcorp.com` — the zone file with the `www` A record pointing to `10.0.0.8`. This is the record we're about to modify.](screenshot6.png)
-*Inspecting the zone file. The `www` A record was my target for modification.*
+![Inspecting the zone file. The `www` A record was my target for modification.](screenshot6.png)
 
 This was my target. I could edit this file to redirect `www.projectxcorp.com` to any IP I controlled.
 
@@ -178,8 +172,7 @@ I also incremented the **Serial** number in the SOA record by 1 — this tells B
 
 I saved and exited.
 
-![nano editor inside the container showing the modified zone file — `www IN A 10.0.0.50` clearly visible, with the updated serial number, before saving.](screenshot7.png)
-*Modifying the zone file in nano to point to my attacker IP and bumping the serial number.*
+![Modifying the zone file in nano to point to my attacker IP and bumping the serial number.](screenshot7.png)
 
 I flushed the DNS cache and restarted BIND9 to apply the change:
 
@@ -188,8 +181,7 @@ rndc flush
 service named restart
 ```
 
-![Terminal showing `rndc flush` and `service named restart` executing without errors, confirming the poisoned zone file is now live.](screenshot8.png)
-*Restarting the BIND9 service to load my newly poisoned zone file.*
+![Restarting the BIND9 service to load my newly poisoned zone file.](screenshot8.png)
 
 ### Step 6 — Stand Up the Fake Web Server on the Attacker Machine
 
@@ -210,17 +202,15 @@ I cloned the exercise web files (or copied the `index.html` from the real web co
 service apache2 start
 ```
 
-> 💡 My fake page looks identical to `www.projectxcorp.com`. The only difference — any credentials submitted go straight to me.
+>  My fake page looks identical to `www.projectxcorp.com`. The only difference — any credentials submitted go straight to me.
 
-![Kali browser showing the fake `www.projectxcorp.com` page served from `http://localhost` on the attacker machine — visually identical to the real portal, with the login form visible.](screenshot9.png)
-*My fake web server running on Kali, perfectly mimicking the internal portal.*
+![My fake web server running on Kali, perfectly mimicking the internal portal.](screenshot9.png)
 
 ### Step 7 — Verify the Victim's DNS is Pointing to Our Server
 
 On `project-x-win-client`, I confirmed the machine was using `10.0.0.8` as its DNS resolver. I opened **Control Panel → Network and Internet → Network Connections**, checked the adapter's DNS settings and made sure it was set to `10.0.0.8`.
 
-![Windows network adapter DNS settings on `project-x-win-client` showing `10.0.0.8` configured as the DNS server.](screenshot10.png)
-*Confirming the victim Windows machine is using the DNS server I just poisoned.*
+![Confirming the victim Windows machine is using the DNS server I just poisoned.](screenshot10.png)
 
 From the Windows client, I did a quick DNS lookup to confirm the poison had taken effect:
 
@@ -240,13 +230,11 @@ http://www.projectxcorp.com
 
 The browser resolved the domain, got back `10.0.0.50`, and loaded my fake portal — which looked exactly like the real `www.projectxcorp.com` internal login page.
 
-![Browser on `project-x-win-client` showing `www.projectxcorp.com` in the address bar but the attacker's cloned page loaded — visually identical to the real portal. This is the core "gotcha" moment of the attack.](screenshot11.png)
-*The victim accesses `www.projectxcorp.com` and is seamlessly served my fake portal.*
+![The victim accesses `www.projectxcorp.com` and is seamlessly served my fake portal.](screenshot11.png)
 
 John (logged in as `johnd`) entered his credentials and submitted the form.
 
-![The fake login page on `project-x-win-client` with credentials typed into the form fields just before submission.](screenshot12.png)
-*The victim entering their credentials into my trap.*
+![The victim entering their credentials into my trap.](screenshot12.png)
 
 ### Step 9 — Capture the Credentials
 
@@ -256,8 +244,7 @@ Back on my attacker machine, I checked the credential capture log:
 cat /var/www/html/creds.log
 ```
 
-![Kali terminal showing `cat creds.log` with John's captured credentials — `johnd` / `@password123!` — received from the fake portal form submission.](screenshot13.png)
-*Payoff: Checking `creds.log` and retrieving the stolen credentials.*
+![Checking `creds.log` and retrieving the stolen credentials.](screenshot13.png)
 
 Credentials captured. The victim had no idea they weren't on the real site.
 

@@ -30,7 +30,7 @@ My objectives were to:
 
 This setup follows the same **Business-in-a-Box** approach as my earlier homelab work: build a realistic but isolated enterprise environment first, then use it safely for offensive and defensive learning.
 
-> ⚠️ **Disclaimer:** I built this lab for cybersecurity education and defensive research purposes only. The services I set up are intentionally simplified and, in some cases, deliberately vulnerable. Do not replicate these configurations in a production environment.
+>  **Disclaimer:** I built this lab for cybersecurity education and defensive research purposes only. The services I set up are intentionally simplified and, in some cases, deliberately vulnerable. Do not replicate these configurations in a production environment.
 
 ## What's New in NA101
 
@@ -47,9 +47,9 @@ NA101 builds directly on top of my E101 topology. All my existing VMs stay the s
 | project-x-linux-client | 10.0.0.101 | Linux Desktop Workstation | E101 |
 | project-x-sec-work | 10.0.0.103 | Security Playground | E101 |
 | project-x-attacker | dynamic | Attacker Environment | E101 |
-| 🌟 corp-server-dns-server | 10.0.0.8:53 | DNS Server (BIND9 Container) | NA101 |
-| 🌟 corp-server-ftp-server | 10.0.0.8:21 | FTP Server (vsftpd Container) | NA101 |
-| 🌟 corp-server-web-server | 10.0.0.8:80 | Web Server (NGINX Container) | NA101 |
+|  corp-server-dns-server | 10.0.0.8:53 | DNS Server (BIND9 Container) | NA101 |
+|  corp-server-ftp-server | 10.0.0.8:21 | FTP Server (vsftpd Container) | NA101 |
+|  corp-server-web-server | 10.0.0.8:80 | Web Server (NGINX Container) | NA101 |
 
 ### New Credentials
 
@@ -115,8 +115,7 @@ cd /home
 mkdir dns && cd dns
 ```
 
-![`/opt/bindconfig` and `/home/dns` directories created successfully via `ls /opt` and `ls /home`.](screenshot1.png)
-*Creating the necessary `/opt/bindconfig` and `/home/dns` directories on my server.*
+![Creating the necessary `/opt/bindconfig` and `/home/dns` directories on my server.](screenshot1.png)
 
 **Step 2: Create the Dockerfile**
 
@@ -151,8 +150,7 @@ docker run -it --network=host --name dns-server -v /opt/bindconfig:/etc/bind/zon
 
 > The `-v` flag binds `/opt/bindconfig` on my host to `/etc/bind/zones` inside the container. Any zone file changes I make inside the container are mirrored back to the host under `/opt/bindconfig`.
 
-![Terminal showing the `docker build` completing successfully, followed by the `docker run` command dropping into the container's root shell prompt.](screenshot2.png)
-*Building and running the DNS container dropped me straight into its root shell prompt.*
+![Building and running the DNS container dropped me straight into its root shell prompt.](screenshot2.png)
 
 **Step 4: Configure BIND9**
 
@@ -214,8 +212,7 @@ service named start
 
 > If the service failed, I ran `named -g -u bind` to see the error logs in the foreground.
 
-![Terminal inside the container showing `service named start` completing without errors.](screenshot3.png)
-*Starting the BIND9 service smoothly without any errors.*
+![Starting the BIND9 service smoothly without any errors.](screenshot3.png)
 
 **Step 5: Verify DNS resolution**
 
@@ -225,8 +222,7 @@ From another VM (e.g. `project-x-attacker`), I verified my DNS server was resolv
 dig @10.0.0.8 www.projectxcorp.com
 ```
 
-![Terminal on `project-x-attacker` showing the `dig` command returning `www.projectxcorp.com` resolving to `10.0.0.8` in the ANSWER SECTION, confirming BIND9 is working.](screenshot4.png)
-*My `dig` query returned the expected IP `10.0.0.8`, confirming my BIND9 server was fully operational.*
+![My `dig` query returned the expected IP `10.0.0.8`, confirming my BIND9 server was fully operational.](screenshot4.png)
 
 **Step 6: Configure SSH and UFW on the container**
 
@@ -251,8 +247,7 @@ ufw allow 53/tcp
 ufw allow 53/udp
 ```
 
-![Terminal showing `netstat -tuln` output with port 53 (DNS) and 2222 (SSH) both visible and listening.](screenshot5.png)
-*Checking my active listening ports, showing both DNS (53) and SSH (2222) open.*
+![Checking my active listening ports, showing both DNS (53) and SSH (2222) open.](screenshot5.png)
 
 ## Container 2 - FTP Server (vsftpd 2.3.4)
 
@@ -267,7 +262,7 @@ I deliberately installed **vsftpd version 2.3.4** - a version known to contain a
 - Anonymous access misconfigurations can expose files to anyone
 - Legacy versions can contain known exploits (like the one I'm setting up here)
 
-> 💡 This container setup is intentionally vulnerable. Credit goes to [Doctor Kisow](https://github.com/DoctorKisow/vsftpd-2.3.4) for the repository I used in this exercise.
+>  This container setup is intentionally vulnerable. Credit goes to [Doctor Kisow](https://github.com/DoctorKisow/vsftpd-2.3.4) for the repository I used in this exercise.
 
 ### Setting Up the vsftpd Container
 
@@ -305,11 +300,9 @@ docker build -t project-x-image-ftp .
 docker run -it --network host --name ftp-server project-x-image-ftp
 ```
 
-![Terminal showing `docker build` completing and the container shell prompt appearing.](screenshot7.png)
-*Building my FTP Docker image and running the container.*
+![Building my FTP Docker image and running the container.](screenshot7.png)
 
-![Terminal showing prompt appearing after docker run](screenshot8.png)
-*Dropping into the FTP container shell after execution.*
+![Dropping into the FTP container shell after execution.](screenshot8.png)
 
 **Step 3: Install vsftpd 2.3.4**
 
@@ -380,8 +373,7 @@ I opened a second terminal tab pointing to `project-x-corp-server` and verified 
 netstat -tuln
 ```
 
-![Terminal on `project-x-corp-server` (host) showing `netstat -tuln` output with ports 20 and 21 visible as listening on all interfaces - confirming vsftpd is running inside the container.](scerenshot9.png)
-*My `netstat` output confirming ports 20 and 21 are listening, showing vsftpd is active inside the container.*
+![My `netstat` output confirming ports 20 and 21 are listening, showing vsftpd is active inside the container.](scerenshot9.png)
 
 I exited the container with `exit`. I can restart the container later when needed for the exploit exercise:
 
@@ -524,8 +516,7 @@ COPY index.html /usr/share/nginx/html/
 COPY nginx.conf /etc/nginx/nginx.conf
 ```
 
-![Terminal showing `ls -la /home/web` with all three files (`index.html`, `nginx.conf`, `Dockerfile`) present and ready.](screenshot10.png)
-*Confirming all three of my NGINX setup files were correctly created.*
+![Confirming all three of my NGINX setup files were correctly created.](screenshot10.png)
 
 **Step 2: Build the image and run the container**
 
@@ -542,20 +533,17 @@ I confirmed the container was running:
 docker ps
 ```
 
-![Terminal showing `docker ps` output with `web-svr` listed as **Up**.](screenshot11.png)
-*My web container running happily alongside the others.*
+![My web container running happily alongside the others.](screenshot11.png)
 
 **Step 3: Verify the portal is accessible**
 
 I opened Firefox on `project-x-corp-server` and navigated to `http://localhost`.
 
-![Firefox browser on `project-x-corp-server` showing the ProjectX internal portal login page rendering correctly at `http://localhost` - with the username and password fields visible.](screenshot12.png)
-*Viewing the new ProjectX portal from the host server.*
+![Viewing the new ProjectX portal from the host server.](screenshot12.png)
 
 I also verified it from another VM on my `10.0.0.0/24` network by navigating to `http://10.0.0.8`.
 
-![Browser on project-x-win-client showing the same portal accessible at `http://10.0.0.8` - confirming it's reachable across the internal network.](screenshot13.png)
-*The portal accessible from my Windows client, proving network connectivity works.*
+![The portal accessible from my Windows client, proving network connectivity works.](screenshot13.png)
 
 ## Summary
 

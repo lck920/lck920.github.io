@@ -56,7 +56,7 @@ I used **[NetImpostor](https://github.com/tastypepperoni/NetImpostor)** to carry
 
 NetImpostor works by flooding fake IP-to-MAC mappings to the ARP table of the victim network's gateway. Once the spoofed entry is in place, it uses a **SOCKS5 proxy** to route traffic through the spoofed IP address — since I will have both my real IP and the spoofed IP active simultaneously, proxychains facilitates communication specifically for the spoofed identity.
 
-> 💡 For a deeper technical breakdown of how NetImpostor achieves stateful connections with a spoofed source IP, read the developer's own writeup: [Stateful connection with spoofed source IP — NetImpostor](https://tastypepperoni.medium.com/stateful-connection-with-spoofed-source-ip-netimpostor-ece8b950a981)
+>  For a deeper technical breakdown of how NetImpostor achieves stateful connections with a spoofed source IP, read the developer's own writeup: [Stateful connection with spoofed source IP — NetImpostor](https://tastypepperoni.medium.com/stateful-connection-with-spoofed-source-ip-netimpostor-ece8b950a981)
 
 ## Security Implications
 
@@ -84,8 +84,7 @@ git clone https://github.com/tastypepperoni/NetImpostor.git
 cd NetImpostor
 ```
 
-![Kali terminal showing the `git clone` command completing — the `NetImpostor` directory appearing in the home folder confirming the repository was cloned successfully.](screenshot1.png)
-*Cloning the NetImpostor repository down to my Kali machine.*
+![Cloning the NetImpostor repository down to my Kali machine.](screenshot1.png)
 
 NetImpostor is written in Go, so I installed the Go compiler and built the binary:
 
@@ -97,8 +96,7 @@ go build -o NetImpostor
 
 I saw Go pulling in dependencies during the build. Once complete, I ran `ls` to confirm the `NetImpostor` executable had been created.
 
-![Kali terminal showing `ls` inside the `NetImpostor` directory with the compiled `NetImpostor` binary visible alongside the source files — confirming the build succeeded.](screenshot2.png)
-*Successfully building the NetImpostor Go binary.*
+![Successfully building the NetImpostor Go binary.](screenshot2.png)
 
 ### Step 2 — Configure Proxychains
 
@@ -116,8 +114,7 @@ socks5 127.0.0.1 1080
 
 I saved and exited.
 
-![nano editor showing `/etc/proxychains4.conf` with the final line reading `socks5 127.0.0.1 1080` — confirming the proxy port is correctly configured.](screenshot3.png)
-*Configuring proxychains to use port 1080 for my SOCKS5 proxy.*
+![Configuring proxychains to use port 1080 for my SOCKS5 proxy.](screenshot3.png)
 
 ### Step 3 — Start a Wireshark Capture
 
@@ -135,8 +132,7 @@ sudo ./NetImpostor -i eth0 --impersonate 10.0.0.101 --targets 10.0.0.1
 - `--impersonate 10.0.0.101` — Jane's workstation IP, the address I'm spoofing
 - `--targets 10.0.0.1` — the network gateway whose ARP table I'm flooding
 
-![Kali terminal showing the `./NetImpostor` command running with output appearing — confirming NetImpostor has started flooding the gateway's ARP table with the spoofed MAC-to-IP mapping.](screenshot4.png)
-*Running NetImpostor to flood the gateway's ARP table.*
+![Running NetImpostor to flood the gateway's ARP table.](screenshot4.png)
 
 ### Step 5 — Send Traffic Through the Spoofed IP
 
@@ -146,10 +142,9 @@ I opened a **new terminal tab** and routed a `curl` request through proxychains 
 proxychains curl https://google.com/
 ```
 
-> 💡 I got a `socket error or timeout` on the first attempt — this is normal. NetImpostor needs a moment to propagate the spoofed ARP entry to the gateway. I tried the command a few more times.
+>  I got a `socket error or timeout` on the first attempt — this is normal. NetImpostor needs a moment to propagate the spoofed ARP entry to the gateway. I tried the command a few more times.
 
-![Kali terminal showing `proxychains curl https://google.com/` — either a successful HTTP response or the initial timeout error on an early attempt, showing NetImpostor settling in.](screenshot5.png)
-*Sending my curl request through proxychains using the spoofed IP.*
+![Sending my curl request through proxychains using the spoofed IP.](screenshot5.png)
 
 ### Step 6 — Confirm the Spoofing in NetImpostor Output
 
@@ -157,8 +152,7 @@ I switched back to the first terminal tab where NetImpostor was running.
 
 I saw output confirming the spoofing was active — NetImpostor logged that it had successfully associated `10.0.0.101` with my attacker MAC address at the gateway.
 
-![NetImpostor terminal showing active output lines confirming the ARP flood is working — the gateway now believes `10.0.0.101` lives at the attacker's MAC address.](screenshot6.png)
-*NetImpostor logs proving the gateway had been successfully poisoned.*
+![NetImpostor logs proving the gateway had been successfully poisoned.](screenshot6.png)
 
 ### Step 7 — Confirm the Spoofed Traffic in Wireshark
 
@@ -169,8 +163,7 @@ I scrolled through the captured packets looking for ARP entries. I was looking f
 1. An ARP reply showing `10.0.0.101` mapped to **my attacker MAC address** — this is the spoofed entry NetImpostor injected into the gateway's ARP table
 2. An outbound packet to Google's public IP showing **`10.0.0.101` as the source** — confirming traffic actually left my attacker machine presenting Jane's IP
 
-![Wireshark packet list with two packets highlighted — first showing an ARP reply mapping `10.0.0.101` to the attacker's MAC address, and second showing an outbound request to Google's IP with `10.0.0.101` as the source in the packet detail pane.](screenshot7.png)
-*Wireshark showing both the malicious ARP reply and the outbound request carrying the spoofed IP address.*
+![Wireshark showing both the malicious ARP reply and the outbound request carrying the spoofed IP address.](screenshot7.png)
 
 I successfully IP spoofed Jane's workstation (`10.0.0.101`). From the network's perspective, the traffic came from Jane — even though Jane's machine never sent a single packet.
 

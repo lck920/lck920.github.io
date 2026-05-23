@@ -67,7 +67,7 @@ This is the classic **Man-in-the-Middle (MiTM)** position: I can read, modify, o
 
 I used **Ettercap** to carry out the attack. Ettercap is an open-source MiTM toolkit that ships natively with Kali Linux. It supports both active and passive eavesdropping on local network connections and provides me with a straightforward GUI for running ARP poisoning attacks without having to craft packets manually.
 
-> 💡 An alternative CLI-based tool called **Bettercap** can accomplish the same thing — worth exploring if you prefer a terminal-based workflow.
+>  An alternative CLI-based tool called **Bettercap** can accomplish the same thing — worth exploring if you prefer a terminal-based workflow.
 
 ## Security Implications
 
@@ -94,8 +94,7 @@ arp -a
 
 I saw the standard devices on the network — my domain controller, corporate server, and other workstations — each with their correct MAC-to-IP mappings. I took note of the entry for the default gateway.
 
-![Command Prompt on `project-x-win-client` showing the output of `arp -a` — a clean ARP table with legitimate MAC-to-IP mappings for the known hosts on `10.0.0.0/24`. This is the "before" state.](screenshot1.png)
-*Here is the clean ARP table on my Windows client before I launched the attack.*
+![Here is the clean ARP table on my Windows client before I launched the attack.](screenshot1.png)
 
 ### Step 2 — Launch Ettercap on the Attacker Machine
 
@@ -103,18 +102,15 @@ I navigated to `project-x-attacker` (Kali Linux).
 
 I searched for **Ettercap** in the application menu and launched it, entering the attacker's password when prompted.
 
-![Ettercap GUI open on `project-x-attacker` showing the initial launch screen with the password prompt or the main interface loading.](screenshot2.png)
-*Launching Ettercap on my Kali machine.*
+![Launching Ettercap on my Kali machine.](screenshot2.png)
 
 In the Ettercap UI, I confirmed my **Primary Interface** was set to `eth0` — this was the interface connected to my `10.0.0.0/24` NAT network.
 
-I clicked the **✅ checkmark** to start the capture.
+I clicked the ** checkmark** to start the capture.
 
-![Ettercap main interface with `eth0` selected as the Primary Interface and the capture started.](screenshot3.png)
-*Starting the capture on eth0.*
+![Starting the capture on eth0.](screenshot3.png)
 
-![Log output visible in the bottom panel showing Ettercap initialising and listening on the interface.](screenshot4.png)
-*Ettercap successfully initialized and listening on the interface.*
+![Ettercap successfully initialized and listening on the interface.](screenshot4.png)
 
 ### Step 3 — Discover Hosts
 
@@ -122,8 +118,7 @@ With the capture running, I navigated to **Hosts List** in the top-left menu.
 
 Ettercap displayed the IP addresses of all reachable hosts it discovered on my local network — I could see the familiar `10.0.0.x` addresses of my lab machines.
 
-![Ettercap Hosts List panel showing the discovered IP addresses on the `10.0.0.0/24` network, including `10.0.0.100` (the Windows client victim).](screenshot5.png)
-*Ettercap easily discovered all the hosts on my network, including my target `10.0.0.100`.*
+![Ettercap easily discovered all the hosts on my network, including my target `10.0.0.100`.](screenshot5.png)
 
 ### Step 4 — Start Wireshark Capture
 
@@ -133,18 +128,15 @@ Before triggering the ARP poison, I opened **Wireshark** on the Kali machine via
 
 Back in Ettercap, I went to the top-right panel and selected **MiTM → ARP Poisoning...**
 
-![Ettercap menu showing **MiTM** expanded with **ARP Poisoning...** highlighted, just before clicking.](screenshot6.png)
-*Selecting the ARP Poisoning option in Ettercap.*
+![Selecting the ARP Poisoning option in Ettercap.](screenshot6.png)
 
 A dialogue box appeared. I made sure **"Sniff remote connections."** was checked, then clicked **OK**.
 
-![The Ettercap ARP Poisoning dialogue box with "Sniff remote connections." checkbox ticked and the OK button visible.](screenshot7.png)
-*Configuring the attack to sniff remote connections.*
+![Configuring the attack to sniff remote connections.](screenshot7.png)
 
 I saw new messages appended to the Ettercap log panel at the bottom, confirming my ARP poisoning had begun.
 
-![Ettercap log panel showing new output lines appearing — entries showing the attacker is broadcasting spoofed ARP replies to the network.](screenshot8.png)
-*Ettercap confirming that I was actively broadcasting spoofed ARP replies to the network.*
+![Ettercap confirming that I was actively broadcasting spoofed ARP replies to the network.](screenshot8.png)
 
 ### Step 6 — Observe the Attack in Wireshark
 
@@ -152,8 +144,7 @@ I switched back to Wireshark and stopped the capture.
 
 I filtered for ARP traffic and examined the ARP requests and responses. Looking closely at the MAC address mappings, I could see that **`10.0.0.100`'s MAC address was now mapped to my attacker's MAC address** in the captured packets.
 
-![Wireshark showing captured ARP packets, with one frame highlighted displaying `10.0.0.100` being associated with the attacker's MAC address in the ARP response — this is the poisoned entry being broadcast across the network.](screenshot9.png)
-*Wireshark showing my poisoned ARP packets successfully altering the MAC mappings.*
+![Wireshark showing my poisoned ARP packets successfully altering the MAC mappings.](screenshot9.png)
 
 ### Step 7 — Confirm the Poisoned ARP Table on the Victim
 
@@ -163,8 +154,7 @@ I navigated back to `project-x-win-client` and ran `arp -a` again:
 arp -a
 ```
 
-![Command Prompt on `project-x-win-client` showing `arp -a` output with the attacker's MAC address now mapped against one or more entries — compare this side-by-side with the "before" screenshot from Step 1 to make the poisoning visually clear.](screenshot10.png)
-*My victim's ARP table, fully poisoned. My attacker MAC address was now mapped to legitimate IPs.*
+![My victim's ARP table, fully poisoned. My attacker MAC address was now mapped to legitimate IPs.](screenshot10.png)
 
 The ARP table now showed my attacker's MAC address mapped to legitimate IP addresses in the network. The victim's device would now route traffic intended for those IPs directly to my attacker machine.
 

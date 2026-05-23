@@ -85,8 +85,7 @@ I logged into the container's bash shell:
 docker exec -it ftp-svr /bin/bash
 ```
 
-![Terminal on `project-x-corp-svr` showing `docker exec -it ftp-svr /bin/bash` dropping into the container's root shell — confirming the FTP container is up and accessible.](screenshot1.png)
-*Dropping into the FTP container's root shell to start the service.*
+![Dropping into the FTP container's root shell to start the service.](screenshot1.png)
 
 ### Step 2 — Start vsftpd Inside the Container
 
@@ -99,8 +98,7 @@ vsftpd
 
 The terminal went blank after running `vsftpd` — this was expected. The service was now running in the foreground, listening on port 21 for incoming FTP connections.
 
-![Terminal inside the FTP container showing `vsftpd` running — the blank output confirming the service is listening and waiting for connections on port 21.](screenshot2.png)
-*Starting the intentionally vulnerable `vsftpd` service.*
+![Starting the intentionally vulnerable `vsftpd` service.](screenshot2.png)
 
 ### Step 3 — Scan the Target from the Attacker Machine
 
@@ -112,8 +110,7 @@ nmap -p 21 -sV 10.0.0.8
 
 The scan returned the service version — **vsftpd 2.3.4**. This was the version I needed. Cross-referencing this against a CVE database revealed **CVE-2011-2523** and the backdoor behaviour immediately.
 
-![Kali terminal showing the Nmap scan output against `10.0.0.8` — port 21 returning `vsftpd 2.3.4` as the service version, the exact version tied to CVE-2011-2523.](screenshot3.png)
-*My Nmap scan successfully identifying the vulnerable vsftpd 2.3.4 version.*
+![My Nmap scan successfully identifying the vulnerable vsftpd 2.3.4 version.](screenshot3.png)
 
 ### Step 4 — Trigger the Backdoor via FTP Login
 
@@ -132,8 +129,7 @@ Password: anypassword
 
 The login appeared to fail or hang — that was fine. The important thing was that sending a username containing `:)` had already triggered the backdoor code inside vsftpd, which was now opening a shell listener on port 6200 in the background.
 
-![Kali terminal showing the `ftp 10.0.0.8` connection with the username `anyuser:)` and a random password entered — the FTP prompt showing the login attempt, with the `:)` trigger string clearly visible in the username field.](screenshot4.png)
-*Triggering the backdoor by supplying the `:)` string in my username.*
+![Triggering the backdoor by supplying the `:)` string in my username.](screenshot4.png)
 
 ### Step 5 — Connect to the Backdoor Shell via Netcat
 
@@ -151,8 +147,7 @@ whoami
 
 The response: `root`.
 
-![Kali terminal showing `nc 10.0.0.8 6200` connecting successfully — the shell prompt appearing, followed by `whoami` returning `root`, confirming full root access inside the vsftpd container via the CVE-2011-2523 backdoor.](screenshot5.png)
-*Connecting via netcat to port 6200 and confirming I had root access.*
+![Connecting via netcat to port 6200 and confirming I had root access.](screenshot5.png)
 
 The backdoor was successfully triggered. With a root shell inside the container, I had full control — I could read files, pivot to other services on the host, install persistence mechanisms, or use the container as a launching point for further attacks on my `10.0.0.0/24` network.
 

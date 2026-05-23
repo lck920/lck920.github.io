@@ -86,7 +86,7 @@ On `project-x-attacker`, I used **Hashcat** to crack the hash. The `-m 0` flag s
 hashcat -m 0 3ddaeb82fbba964fb3461d4e4f1342eb /usr/share/wordlists/rockyou.txt
 ```
 
-> ⚠️ Note: Hashcat requires GPU acceleration to run at full speed. Because my VM only had 2GB of RAM assigned, modern versions of hashcat did not run successfully. So I skipped to the online cracker in the next step.
+>  Note: Hashcat requires GPU acceleration to run at full speed. Because my VM only had 2GB of RAM assigned, modern versions of hashcat did not run successfully. So I skipped to the online cracker in the next step.
 
 ### Step 3 — Use an Online Hash Cracker (Fallback)
 
@@ -98,8 +98,7 @@ Since Hashcat didn't work due to my VM resource constraints, I navigated to **[C
 
 CrackStation returned the hash type (MD5) and the cracked plaintext password.
 
-![Browser on `project-x-attacker` showing CrackStation with the hash entered and the result returned — the MD5 hash type and the cracked plaintext password clearly visible in the results table.](screenshot1.png)
-*CrackStation instantly converting my target MD5 hash back into a plaintext password.*
+![CrackStation instantly converting my target MD5 hash back into a plaintext password.](screenshot1.png)
 
 I now had John's plaintext password.
 
@@ -118,11 +117,9 @@ I entered John's credentials:
 - **Username:** `john.doe@projectxcorp.com`
 - **Password:** (cracked plaintext from Step 3)
 
-![Browser showing the ProjectX internal portal login page at `http://10.0.0.8` with `john.doe@projectxcorp.com` typed into the username field and the password entered — just before clicking login.](screenshot2.png)
-*Stuffing the freshly cracked credentials into the ProjectX portal login.*
+![Stuffing the freshly cracked credentials into the ProjectX portal login.](screenshot2.png)
 
-![Browser showing the ProjectX portal logged in successfully as John Doe — the internal dashboard or welcome page visible, confirming the credential stuffing attack worked.](screenshot3.png)
-*Access granted! I was logged in as John Doe.*
+![I was logged in as John Doe.](screenshot3.png)
 
 Access granted. John's reused password from a third-party breach opened the door to my internal corporate portal.
 

@@ -116,8 +116,7 @@ docker run -d \
 - `--cpus="0.25"` — limits the container to 25% of one CPU core
 - `--memory="6m"` — limits the container to just 6MB of RAM
 
-![Terminal on `project-x-corp-svr` showing the `docker run` command completing — the container ID printed confirming `projectxwebdos` started successfully.](screenshot1.png)
-*Starting my resource-constrained `projectxwebdos` container for the test.*
+![Starting my resource-constrained `projectxwebdos` container for the test.](screenshot1.png)
 
 I confirmed the container was running and noted its baseline resource usage:
 
@@ -125,8 +124,7 @@ I confirmed the container was running and noted its baseline resource usage:
 docker stats projectxwebdos
 ```
 
-![Terminal showing `docker stats projectxwebdos` output — the container's CPU and memory usage at rest before the attack starts. This is the "before" baseline to compare against once the flood hits.](screenshot2.png)
-*Checking my container's baseline resource usage before launching the attack.*
+![Checking my container's baseline resource usage before launching the attack.](screenshot2.png)
 
 ### Step 2 — Verify the Web Server is Reachable
 
@@ -136,8 +134,7 @@ Before launching the attack, I confirmed the target web server was up and respon
 curl http://10.0.0.8
 ```
 
-![Kali terminal or browser showing a successful HTTP response from `10.0.0.8` — the ProjectX web portal loading correctly, confirming the target is alive before we flood it.](screenshot3.png)
-*Verifying the target web portal is responsive from my attacker machine.*
+![Verifying the target web portal is responsive from my attacker machine.](screenshot3.png)
 
 ### Step 3 — Launch the SYN Flood from the Attacker Machine
 
@@ -149,8 +146,7 @@ sudo hping3 -i u10 -S -p 80 -c 250000 10.0.0.8
 
 This sent 250,000 SYN packets to port 80 on the web server at a rate of one packet every 10 microseconds — roughly 100,000 packets per second.
 
-![Kali terminal showing the `hping3` command running — the packet counter incrementing rapidly, showing the flood is actively sending SYN packets toward `10.0.0.8:80`.](screenshot4.png)
-*Launching the hping3 flood against the web server.*
+![Launching the hping3 flood against the web server.](screenshot4.png)
 
 ### Step 4 — Observe the Impact on the Container
 
@@ -162,15 +158,13 @@ docker stats projectxwebdos
 
 I saw the CPU and network I/O metrics start climbing noticeably as the container struggled to process the flood of incoming SYN packets.
 
-![Terminal on `project-x-corp-svr` showing `docker stats projectxwebdos` with CPU usage and network I/O spiking compared to the baseline — the container visibly straining under the load. Compare this against the baseline screenshot from Step 1.](screenshot5.png)
-*The container's CPU and I/O spiking heavily as it struggles to handle the SYN flood.*
+![The container's CPU and I/O spiking heavily as it struggles to handle the SYN flood.](screenshot5.png)
 
 ### Step 5 — Review the hping3 Output
 
 Once all 250,000 packets were sent, hping3 printed a summary showing the percentage of packet loss. A high packet loss figure indicated the server was dropping incoming requests — it was receiving more than it could handle and beginning to discard traffic.
 
-![Kali terminal showing the final hping3 output summary after all 250,000 packets have been sent — the packet loss percentage clearly visible, confirming the server was overwhelmed and started dropping requests.](screenshot6.png)
-*My hping3 summary showing a high packet loss, confirming the DoS condition was achieved.*
+![My hping3 summary showing a high packet loss, confirming the DoS condition was achieved.](screenshot6.png)
 
 ### Step 6 — Clean Up
 

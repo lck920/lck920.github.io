@@ -20,7 +20,7 @@ Legacy systems, forgotten infrastructure, rushed deployments, and weak operation
 
 In this part of the series, my goal is to intentionally weaken selected systems inside the **Business-in-a-Box** homelab I built, while simultaneously configuring **Wazuh** to monitor and detect the resulting attack activity.
 
-> ⚠️ **Disclaimer:** Every configuration change I make in this section is strictly for my homelab. None of this should be applied to a production environment.
+>  **Disclaimer:** Every configuration change I make in this section is strictly for my homelab. None of this should be applied to a production environment.
 
 Before starting, I ensured all my VMs were up and Wazuh was fully configured with agents deployed to the relevant machines.
 
@@ -51,11 +51,9 @@ sudo passwd root       # set to: november
 sudo systemctl restart ssh
 ```
 
-![SSH service in project-x-corp-server is active.](screenshot1.png)
-*Here I confirmed the SSH service on my project-x-corp-server is active and running.*
+![Here I confirmed the SSH service on my project-x-corp-server is active and running.](screenshot1.png)
 
-![PasswordAuthentication yes and PermitRootLogin yes lines visible and uncommented in /etc/ssh/sshd_config, showing the deliberate weakening.](screenshot2.png)
-*I uncommented the PasswordAuthentication and PermitRootLogin lines in my /etc/ssh/sshd_config to deliberately weaken the server.*
+![I uncommented the PasswordAuthentication and PermitRootLogin lines in my /etc/ssh/sshd_config to deliberately weaken the server.](screenshot2.png)
 
 > 🔍 **Detection Note:** My `project-x-corp-server` does **not** have a Wazuh agent installed. This is intentional — I wanted to demonstrate the detection gap that exists when a machine has no endpoint monitoring. An attacker could brute-force this box and no SIEM alert would fire.
 
@@ -71,13 +69,11 @@ sudo ufw allow 22
 
 I enabled password authentication in `/etc/ssh/sshd_config` and restarted SSH as above. I also set root's password to `november`.
 
-![SSH service in project-x-linux-client is active.](screenshot3.png)
-*Checking that the SSH service on my project-x-linux-client is successfully running.*
+![Checking that the SSH service on my project-x-linux-client is successfully running.](screenshot3.png)
 
 > 🔍 **Detection Note (Wazuh Rule ID: 5760):** Wazuh has a built-in rule that fires on `sshd: authentication failed` events. I can view it under **Server Management -> Rules -> 5760**.
 
-![Rule ID 5760 searched and the rule detail showing the description "sshd: authentication failed" and its rule group.](screenshot4.png)
-*Here I found Rule ID 5760 in Wazuh, which handles "sshd: authentication failed" events.*
+![Here I found Rule ID 5760 in Wazuh, which handles "sshd: authentication failed" events.](screenshot4.png)
 
 **Creating a Wazuh Alert for Failed SSH:**
 
@@ -89,8 +85,7 @@ In **Explore -> Alerting -> Monitors**, I created a new monitor with the followi
 
 ### 3. Configure the MailHog SMTP Email Connection
 
-![MailHog Diagram](mailhog_drawio.png)
-*A quick diagram showing how I set up my MailHog SMTP connection.*
+![A quick diagram showing how I set up my MailHog SMTP connection.](mailhog_drawio.png)
 
 MailHog should already be running from the setup phase. I confirmed the container is active on `project-x-corp-server`:
 
@@ -107,8 +102,7 @@ cd /home && ./email_poller.sh &
 
 This script polls the MailHog API every 30 seconds and simulates a user checking their inbox — a critical piece for the phishing simulation I run in Part 3.
 
-![email_poller.sh script running in the background in project-x-linux-client, confirming that it is active.](screenshot5.png)
-*My email_poller.sh script running smoothly in the background on my Linux client.*
+![My email_poller.sh script running smoothly in the background on my Linux client.](screenshot5.png)
 
 > 🔍 **Detection Note:** Since my `project-x-corp-server` has no Wazuh agent, email activity originating from it creates a monitoring blind spot — intentionally mirroring real-world scenarios where email infrastructure goes unmonitored.
 
@@ -127,8 +121,7 @@ net localgroup "Remote Management Users" /add administrator
 Restart-Service WinRM
 ```
 
-![PowerShell window on project-x-win-client showing the output of `Enable-PSRemoting -force` and `Restart-Service WinRM` executing successfully — confirming WinRM is enabled.](screenshot6.png)
-*Successfully enabling WinRM via PowerShell on my Windows client.*
+![Successfully enabling WinRM via PowerShell on my Windows client.](screenshot6.png)
 
 > 🔍 **Detection Note (Wazuh Rule ID: 60106):** WinRM connections use Kerberos authentication, which generates Windows Event ID `4624` with `logonProcessName: Kerberos`. Wazuh catches this under rule 60106 (`Windows Logon Success`).
 
@@ -142,8 +135,7 @@ I created a monitor titled "WinRM Logon" with:
 
 I navigated to **Settings -> System -> Remote Desktop** on the domain controller and toggled it **On**. This exposes RDP (port 3389) on my DC — the highest-value machine in the network.
 
-![Windows Settings screen on project-x-dc showing the Remote Desktop is turned on](screenshot7.png)
-*Exposing RDP by turning on Remote Desktop settings on my domain controller.*
+![Exposing RDP by turning on Remote Desktop settings on my domain controller.](screenshot7.png)
 
 > 🔍 **Detection Note (Wazuh Rule ID: 92653):** Successful RDP logins generate Event ID `4624` with `logonProcessName: User32`. I can search for it in Wazuh under **Explore -> Discover** using `data.win.eventdata.logonProcessName: User32`.
 
@@ -154,8 +146,7 @@ This simulates the crown jewels of my fictional company. On the domain controlle
 - Path: `C:\Users\Administrator\Documents\ProductionFiles\secrets.txt`
 - Content: anything representing sensitive data (I used `DEEBOODAH` for this lab)
 
-![Windows File Explorer on `project-x-dc` showing the `ProductionFiles` folder inside `Documents`, with `secrets.txt` visible inside it.](screenshot8.png)
-*Creating my simulated "crown jewels" sensitive file on the DC.*
+![Creating my simulated "crown jewels" sensitive file on the DC.](screenshot8.png)
 
 **Configure Wazuh File Integrity Monitoring (FIM):**
 
@@ -170,11 +161,9 @@ In Wazuh, I went to **Server Management -> Endpoint Groups -> Windows -> Files -
 </syscheck>
 ```
 
-![Wazuh agent.conf editor in the browser showing the `<syscheck>` block added at the bottom of the file, monitoring the `ProductionFiles` path.](screenshot9.png)
-*Editing my Wazuh agent.conf to set up File Integrity Monitoring for the ProductionFiles directory.*
+![Editing my Wazuh agent.conf to set up File Integrity Monitoring for the ProductionFiles directory.](screenshot9.png)
 
-![Wazuh **Endpoint Security -> File Integrity Monitoring -> Inventory** tab with `project-x-dc` selected, showing the `secrets.txt` file path appearing in the monitored file list.](screenshot10.png)
-*Verifying that Wazuh's FIM inventory has picked up my new secrets.txt file.*
+![Verifying that Wazuh's FIM inventory has picked up my new secrets.txt file.](screenshot10.png)
 
 **Creating a Custom FIM Alert:**
 
@@ -213,7 +202,6 @@ Then I ran in PowerShell:
 Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" -Name AllowInsecureGuestAuth -Value 1 -Force
 ```
 
-![Group Policy Editor open on project-x-win-client showing the "Enable insecure guest logons" policy set to Enabled](screenshot11.png)
-*Enabling insecure guest logons on the Windows client via the Group Policy Editor.*
+![Enabling insecure guest logons on the Windows client via the Group Policy Editor.](screenshot11.png)
 
 *My lab is now intentionally vulnerable and monitored. In Part 3, I will run the actual attack — following the full cyber attack lifecycle from reconnaissance all the way to persistence.*

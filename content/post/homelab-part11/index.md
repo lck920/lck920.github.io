@@ -237,4 +237,4 @@ The key takeaway from the blue team side: **monitor your outbound traffic**. A m
 
 ---
 
-*Next up — the final post in this series: Network Layer Monitoring & Prevention, where I flip to the blue team side and apply Arpwatch and Suricata custom rules to detect and block the attacks I've been running across the NA101 section.*
+*And with that, this wraps up the final writeup for the cybersecurity ProjectX homelab series! Thank you for following along as I built, secured, and attacked this environment.*

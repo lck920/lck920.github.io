@@ -76,7 +76,7 @@ I navigated to the home directory and created a new folder for my C2 code:
 cd ~ && mkdir evilc2 && cd evilc2
 ```
 
-### Step 2 — Write the Server Handler (`server.py`)
+### Step 2 — Write the Server Handler (server.py)
 
 The server handler is the C2 server itself — it listens on a port for incoming connections from victim machines.
 
@@ -117,7 +117,7 @@ A quick breakdown of what each part does:
 
 ![Writing the `server.py` script on my Kali machine.](screenshot1.png)
 
-### Step 3 — Write the Client Handler (`client.py`)
+### Step 3 — Write the Client Handler (client.py)
 
 The client handler is the dropper — the file that gets deployed to the victim machine and calls home to the C2 server.
 

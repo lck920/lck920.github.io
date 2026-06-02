@@ -1,0 +1,230 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Creates an EC2 instance with a vulnerable web application susceptible to SSRF attacks against the EC2 metadata service for security testing and educational purposes'
+
+Parameters:
+  InstanceName:
+    Type: String
+    Default: delete-me-ssrf-ec2
+    Description: Name for the EC2 instance
+  
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 Key Pair to enable SSH access to the instance
+  
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID where the instance will be deployed
+  
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Subnet ID where the instance will be deployed (should be a public subnet)
+  
+  AmiId:
+    Type: AWS::EC2::Image::Id
+    Default: ami-0a56f8447277affd8
+    Description: AMI ID for Ubuntu Server 24.04 LTS (default is for ap-southeast-1, update for your region)
+
+Resources:
+  # Security Group - Allows HTTP, HTTPS, and SSH access
+  SSRFInstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${InstanceName}-SG'
+      GroupDescription: Security group for SSRF vulnerable EC2 instance
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP access from internet
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS access from internet
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: SSH access from internet
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic
+      Tags:
+        - Key: Name
+          Value: !Sub '${InstanceName}-SG'
+        - Key: Environment
+          Value: Testing
+        - Key: Purpose
+          Value: SecurityTraining
+
+  # IAM Role for EC2 instance (with permissions to access metadata)
+  SSRFInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${InstanceName}-Role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+      Tags:
+        - Key: Name
+          Value: !Sub '${InstanceName}-Role'
+        - Key: Environment
+          Value: Testing
+        - Key: Purpose
+          Value: SecurityTraining
+
+  # IAM Instance Profile
+  SSRFInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub '${InstanceName}-Profile'
+      Roles:
+        - !Ref SSRFInstanceRole
+
+  # EC2 Instance with vulnerable web application
+  SSRFEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: t3.micro
+      KeyName: !Ref KeyPairName
+      IamInstanceProfile: !Ref SSRFInstanceProfile
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds:
+        - !Ref SSRFInstanceSecurityGroup
+      MetadataOptions:
+        HttpEndpoint: enabled
+        HttpTokens: optional  # Allows IMDSv1 (vulnerable configuration)
+        HttpPutResponseHopLimit: 1
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -e
+          
+          # Update system
+          apt-get update
+          apt-get install -y python3 python3-pip curl
+          
+          # Create vulnerable web application directory
+          mkdir -p /opt/ssrf-app
+          cd /opt/ssrf-app
+          
+          # Create vulnerable Flask application
+          cat > app.py << 'EOF'
+          from flask import Flask, request, jsonify
+          import requests
+          import urllib.parse
+          
+          app = Flask(__name__)
+          
+          @app.route('/')
+          def index():
+              return '''
+              <html>
+              <head><title>URL Fetcher Service</title></head>
+              <body>
+                  <h1>URL Fetcher Service</h1>
+                  <p>This service fetches content from any URL you provide.</p>
+                  <form method="GET" action="/fetch">
+                      <label for="url">Enter URL to fetch:</label><br>
+                      <input type="text" id="url" name="url" size="80" placeholder="http://example.com"><br><br>
+                      <input type="submit" value="Fetch URL">
+                  </form>
+                  <hr>
+                  <h2>Example URLs:</h2>
+                  <ul>
+                      <li>http://example.com</li>
+                      <li>http://169.254.169.254/latest/meta-data/</li>
+                  </ul>
+              </body>
+              </html>
+              '''
+          
+          @app.route('/fetch')
+          def fetch_url():
+              url = request.args.get('url')
+              if not url:
+                  return jsonify({'error': 'No URL provided'}), 400
+              
+              try:
+                  # VULNERABLE: No validation of URL - allows SSRF
+                  response = requests.get(url, timeout=5, allow_redirects=True)
+                  return f'''
+                  <html>
+                  <head><title>Fetched Content</title></head>
+                  <body>
+                      <h1>Fetched Content from: {url}</h1>
+                      <pre>{response.text}</pre>
+                      <hr>
+                      <a href="/">Back to Home</a>
+                  </body>
+                  </html>
+                  ''', 200
+              except Exception as e:
+                  return jsonify({'error': str(e)}), 500
+          
+          if __name__ == '__main__':
+              app.run(host='0.0.0.0', port=80, debug=False)
+          EOF
+          
+          # Install Flask
+          pip3 install flask requests
+          
+          # Create systemd service
+          cat > /etc/systemd/system/ssrf-app.service << 'EOF'
+          [Unit]
+          Description=Vulnerable SSRF Web Application
+          After=network.target
+          
+          [Service]
+          Type=simple
+          User=root
+          WorkingDirectory=/opt/ssrf-app
+          ExecStart=/usr/bin/python3 /opt/ssrf-app/app.py
+          Restart=always
+          RestartSec=10
+          
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          
+          # Enable and start the service
+          systemctl daemon-reload
+          systemctl enable ssrf-app.service
+          systemctl start ssrf-app.service
+          
+          # Log completion
+          echo "SSRF vulnerable application deployed successfully" >> /var/log/user-data.log
+      Tags:
+        - Key: Name
+          Value: !Ref InstanceName
+        - Key: Environment
+          Value: Testing
+        - Key: Purpose
+          Value: SecurityTraining
+
+Outputs:
+  InstanceId:
+    Description: ID of the EC2 instance. Use this to query the public IP address via AWS CLI or console.
+    Value: !Ref SSRFEC2Instance
+    Export:
+      Name: !Sub '${AWS::StackName}-InstanceId'
+  
+  SecurityGroupId:
+    Description: Security Group ID for the instance
+    Value: !Ref SSRFInstanceSecurityGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-SecurityGroupId'
+  
+  GetPublicIPCommand:
+    Description: AWS CLI command to get the public IP address
+    Value: !Sub 'aws ec2 describe-instances --instance-ids ${SSRFEC2Instance} --query "Reservations[0].Instances[0].PublicIpAddress" --output text'

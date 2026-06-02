@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Creates a misconfigured S3 bucket with overly permissive policies for security testing and educational purposes'
+
+Parameters:
+  BucketName:
+    Type: String
+    Default: delete-me-projectx-leaky-bucket-demo
+    Description: Name for the S3 bucket (must be globally unique)
+
+Resources:
+  # S3 Bucket with misconfigured settings
+  LeakyS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: Name
+          Value: !Ref BucketName
+        - Key: Environment
+          Value: Testing
+        - Key: Purpose
+          Value: SecurityTraining
+
+  # Bucket Policy - Overly permissive, allows public read access
+  LeakyBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref LeakyS3Bucket
+      PolicyDocument:
+        Statement:
+          # Public read access - allows anyone to list bucket contents
+          - Sid: PublicListBucket
+            Effect: Allow
+            Principal: '*'
+            Action:
+              - s3:ListBucket
+            Resource: !GetAtt LeakyS3Bucket.Arn
+          # Public read access - allows anyone to read objects
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: '*'
+            Action:
+              - s3:GetObject
+              - s3:GetObjectVersion
+            Resource: !Sub '${LeakyS3Bucket.Arn}/*'
+
+Outputs:
+  BucketName:
+    Description: Name of the misconfigured S3 bucket
+    Value: !Ref LeakyS3Bucket
+    Export:
+      Name: !Sub '${AWS::StackName}-BucketName'
+  
+  BucketArn:
+    Description: ARN of the misconfigured S3 bucket
+    Value: !GetAtt LeakyS3Bucket.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-BucketArn'
+  
+  BucketURL:
+    Description: URL to access the S3 bucket
+    Value: !Sub 'https://${LeakyS3Bucket}.s3.${AWS::Region}.amazonaws.com'
+    Export:
+      Name: !Sub '${AWS::StackName}-BucketURL'

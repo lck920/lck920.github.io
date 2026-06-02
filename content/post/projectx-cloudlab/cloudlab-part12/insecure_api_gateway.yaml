@@ -1,0 +1,439 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Creates an insecure API Gateway with overly permissive resource policy and no authentication for security testing and educational purposes'
+
+Parameters:
+  ApiGatewayName:
+    Type: String
+    Default: delete-me-api-gateway
+    Description: Name for the API Gateway
+
+Resources:
+  # Lambda execution role with overly permissive permissions
+  VulnerableLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ApiGatewayName}-LambdaRole'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: OverlyPermissivePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # Overly permissive S3 access
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                  - s3:DeleteObject
+                Resource:
+                  - '*'
+              # Overly permissive DynamoDB access
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - '*'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ApiGatewayName}-LambdaRole'
+        - Key: Environment
+          Value: Testing
+        - Key: Purpose
+          Value: SecurityTraining
+
+  # Lambda function that returns sensitive information
+  VulnerableLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ApiGatewayName}-Lambda'
+      Runtime: python3.11
+      Handler: index.handler
+      Role: !GetAtt VulnerableLambdaRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import os
+          import boto3
+          from datetime import datetime
+          
+          # In-memory user store (vulnerable - no persistence)
+          users_db = {
+              'admin': {
+                  'user_id': 'admin',
+                  'email': 'admin@projectx.com',
+                  'role': 'administrator',
+                  'permissions': ['read', 'write', 'delete', 'admin'],
+                  'api_key': 'REDACTED_STRIPE_admin_51HqSOFKmS3g3E5rK9XpZ8dN2vL6mQ7wT4yU9i',
+                  'created_at': '2024-01-15T10:00:00Z'
+              },
+              'user1': {
+                  'user_id': 'user1',
+                  'email': 'user1@projectx.com',
+                  'role': 'user',
+                  'permissions': ['read'],
+                  'api_key': 'REDACTED_STRIPE_user1_51HqSOFKmS3g3E5rK9XpZ8dN2vL6mQ7wT4yU9i',
+                  'created_at': '2024-01-15T10:05:00Z'
+              }
+          }
+          
+          def handler(event, context):
+              try:
+                  # Get path - handle both root and proxy paths
+                  raw_path = event.get('path', '/')
+                  path_params = event.get('pathParameters') or {}
+                  
+                  # If pathParameters has 'proxy', use that; otherwise use the path directly
+                  if path_params.get('proxy'):
+                      path = '/' + path_params.get('proxy')
+                  else:
+                      path = raw_path
+                  
+                  method = event.get('httpMethod', 'GET')
+                  body = event.get('body', '{}')
+                  
+                  # Parse request body if present
+                  try:
+                      request_body = json.loads(body) if body else {}
+                  except:
+                      request_body = {}
+                  
+                  headers = {
+                      'Content-Type': 'application/json',
+                      'Access-Control-Allow-Origin': '*'
+                  }
+                  
+                  # Route based on path and method
+                  if path == '/' or path == '':
+                      # Root endpoint - hint at other endpoints
+                      return {
+                          'statusCode': 200,
+                          'headers': headers,
+                          'body': json.dumps({
+                              'message': 'Welcome to ProjectX API Gateway',
+                              'version': '1.0.0',
+                              'hint': 'Try exploring different endpoints to discover functionality',
+                              'available_methods': ['GET', 'POST']
+                          })
+                      }
+                  
+                  elif path == '/users' and method == 'GET':
+                      # List all users
+                      return {
+                          'statusCode': 200,
+                          'headers': headers,
+                          'body': json.dumps({
+                              'message': 'User directory',
+                              'total_users': len(users_db),
+                              'users': [{'user_id': uid, 'email': u.get('email'), 'role': u.get('role')} for uid, u in users_db.items()],
+                              'hint': 'Try accessing /users/{userId} to see detailed user information'
+                          })
+                      }
+                  
+                  elif path == '/users' and method == 'POST':
+                      # Create new user
+                      user_id = request_body.get('user_id') or request_body.get('username', f'user{len(users_db) + 1}')
+                      email = request_body.get('email', f'{user_id}@example.com')
+                      role = request_body.get('role', 'user')
+                      
+                      # Determine permissions based on role
+                      if role == 'admin' or role == 'administrator':
+                          permissions = ['read', 'write', 'delete', 'admin']
+                      elif role == 'user':
+                          permissions = ['read']
+                      else:
+                          permissions = request_body.get('permissions', ['read'])
+                      
+                      new_user = {
+                          'user_id': user_id,
+                          'email': email,
+                          'role': role,
+                          'permissions': permissions,
+                          'api_key': f'REDACTED_STRIPE_{user_id}_{context.aws_request_id[:20]}',
+                          'created_at': datetime.utcnow().isoformat() + 'Z'
+                      }
+                      
+                      users_db[user_id] = new_user
+                      
+                      return {
+                          'statusCode': 201,
+                          'headers': headers,
+                          'body': json.dumps({
+                              'message': 'User created successfully',
+                              'user': {
+                                  'user_id': new_user['user_id'],
+                                  'email': new_user['email'],
+                                  'role': new_user['role'],
+                                  'permissions': new_user['permissions']
+                              },
+                              'hint': f'Check /users/{user_id} to see full user details and permissions'
+                          })
+                      }
+                  
+                  elif path.startswith('/users/') and method == 'GET':
+                      # Get specific user details
+                      user_id = path.split('/')[-1] if path.split('/')[-1] else path.split('/')[-2]
+                      
+                      if user_id in users_db:
+                          user = users_db[user_id]
+                          return {
+                              'statusCode': 200,
+                              'headers': headers,
+                              'body': json.dumps({
+                                  'message': f'User details for {user_id}',
+                                  'user': user,
+                                  'hint': f'Try /permissions/{user_id} to see detailed permission breakdown'
+                              })
+                          }
+                      else:
+                          return {
+                              'statusCode': 404,
+                              'headers': headers,
+                              'body': json.dumps({
+                                  'error': 'User not found',
+                                  'user_id': user_id,
+                                  'available_users': list(users_db.keys())
+                              })
+                          }
+                  
+                  elif path.startswith('/permissions/') and method == 'GET':
+                      # Get user permissions
+                      user_id = path.split('/')[-1] if path.split('/')[-1] else path.split('/')[-2]
+                      
+                      if user_id in users_db:
+                          user = users_db[user_id]
+                          return {
+                              'statusCode': 200,
+                              'headers': headers,
+                              'body': json.dumps({
+                                  'message': f'Permissions for {user_id}',
+                                  'user_id': user_id,
+                                  'role': user.get('role'),
+                                  'permissions': user.get('permissions', []),
+                                  'permission_details': {
+                                      'read': 'Can view data and user information',
+                                      'write': 'Can create and modify data',
+                                      'delete': 'Can delete data and users',
+                                      'admin': 'Full administrative access'
+                                  },
+                                  'api_key': user.get('api_key'),
+                                  'database_access': 'postgresql://admin:SuperSecretPassword123!@prod-db.internal:5432/customer_data'
+                              })
+                          }
+                      else:
+                          return {
+                              'statusCode': 404,
+                              'headers': headers,
+                              'body': json.dumps({
+                                  'error': 'User not found',
+                                  'user_id': user_id
+                              })
+                          }
+                  
+                  elif path == '/data' and method == 'GET':
+                      # Sensitive data endpoint
+                      return {
+                          'statusCode': 200,
+                          'headers': headers,
+                          'body': json.dumps({
+                              'message': 'Sensitive data access',
+                              'data': {
+                                  'customer_records': 1250,
+                                  'api_keys': [
+                                      'REDACTED_STRIPE_51HqSOFKmS3g3E5rK9XpZ8dN2vL6mQ7wT4yU9i',
+                                      'REDACTED_STRIPE_prod_7K9XpZ8dN2vL6mQ7wT4yU9i'
+                                  ],
+                                  'database_url': 'postgresql://admin:SuperSecretPassword123!@prod-db.internal:5432/customer_data',
+                                  's3_bucket': 'projectx-customer-data-prod',
+                                  'aws_region': os.environ.get('AWS_REGION', 'ap-southeast-1')
+                              },
+                              'hint': 'Try /admin for administrative operations'
+                          })
+                      }
+                  
+                  elif path == '/admin' and method == 'GET':
+                      # Admin endpoint
+                      return {
+                          'statusCode': 200,
+                          'headers': headers,
+                          'body': json.dumps({
+                              'message': 'Administrative operations',
+                              'admin_functions': [
+                                  'User management',
+                                  'Database access',
+                                  'System configuration',
+                                  'API key generation'
+                              ],
+                              'credentials': {
+                                  'admin_api_key': 'REDACTED_STRIPE_admin_51HqSOFKmS3g3E5rK9XpZ8dN2vL6mQ7wT4yU9i',
+                                  'database_admin': 'postgresql://admin:SuperSecretPassword123!@prod-db.internal:5432/customer_data',
+                                  'aws_access_key': 'AKIAIOSFODNN7EXAMPLE',
+                                  'aws_secret_key': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
+                              },
+                              'warning': 'This endpoint should require authentication!'
+                          })
+                      }
+                  
+                  else:
+                      # Unknown endpoint
+                      return {
+                          'statusCode': 404,
+                          'headers': headers,
+                          'body': json.dumps({
+                              'error': 'Endpoint not found',
+                              'path': path,
+                              'method': method,
+                              'hint': 'Try: /users, /data, /admin, or /users/{userId}'
+                          })
+                      }
+              
+              except Exception as e:
+                  # Return error response
+                  return {
+                      'statusCode': 500,
+                      'headers': {
+                          'Content-Type': 'application/json',
+                          'Access-Control-Allow-Origin': '*'
+                      },
+                      'body': json.dumps({
+                          'error': 'Internal server error',
+                          'message': str(e),
+                          'path': event.get('path', '/'),
+                          'method': event.get('httpMethod', 'GET')
+                      })
+                  }
+      Timeout: 30
+      Tags:
+        - Key: Name
+          Value: !Sub '${ApiGatewayName}-Lambda'
+        - Key: Environment
+          Value: Testing
+        - Key: Purpose
+          Value: SecurityTraining
+
+  # REST API Gateway
+  VulnerableApiGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Ref ApiGatewayName
+      Description: Vulnerable API Gateway for security testing
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      Policy:
+        Version: '2012-10-17'
+        Statement:
+          # VULNERABLE: Allows public access from anywhere
+          - Effect: Allow
+            Principal: '*'
+            Action: execute-api:Invoke
+            Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Ref ApiGatewayName
+        - Key: Environment
+          Value: Testing
+        - Key: Purpose
+          Value: SecurityTraining
+
+  # Lambda permission - allows API Gateway to invoke from any path
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - VulnerableApiGateway
+      - VulnerableLambdaFunction
+    Properties:
+      FunctionName: !Ref VulnerableLambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${VulnerableApiGateway}/*'
+
+  # API Gateway Resource (proxy for all paths)
+  ApiResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref VulnerableApiGateway
+      ParentId: !GetAtt VulnerableApiGateway.RootResourceId
+      PathPart: '{proxy+}'
+
+  # API Gateway Method for root path - No authentication required
+  RootMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref VulnerableApiGateway
+      ResourceId: !GetAtt VulnerableApiGateway.RootResourceId
+      HttpMethod: ANY
+      AuthorizationType: NONE  # VULNERABLE: No authentication
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${VulnerableLambdaFunction.Arn}/invocations'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+
+  # API Gateway Method for proxy path - No authentication required
+  ApiMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref VulnerableApiGateway
+      ResourceId: !Ref ApiResource
+      HttpMethod: ANY
+      AuthorizationType: NONE  # VULNERABLE: No authentication
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${VulnerableLambdaFunction.Arn}/invocations'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+
+  # API Gateway Deployment
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - RootMethod
+      - ApiMethod
+      - LambdaInvokePermission
+    Properties:
+      RestApiId: !Ref VulnerableApiGateway
+      StageName: prod
+      Description: Vulnerable API deployment
+
+Outputs:
+  ApiGatewayId:
+    Description: ID of the vulnerable API Gateway
+    Value: !Ref VulnerableApiGateway
+    Export:
+      Name: !Sub '${AWS::StackName}-ApiGatewayId'
+  
+  ApiGatewayUrl:
+    Description: Invoke URL for the API Gateway
+    Value: !Sub 'https://${VulnerableApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/'
+    Export:
+      Name: !Sub '${AWS::StackName}-ApiGatewayUrl'
+  
+  LambdaFunctionName:
+    Description: Name of the Lambda function
+    Value: !Ref VulnerableLambdaFunction
+    Export:
+      Name: !Sub '${AWS::StackName}-LambdaFunctionName'
+  
+  TestCommand:
+    Description: Example curl command to test the API
+    Value: !Sub 'curl https://${VulnerableApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/test'

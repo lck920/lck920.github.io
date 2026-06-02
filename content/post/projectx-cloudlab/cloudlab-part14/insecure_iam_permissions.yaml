@@ -1,0 +1,451 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  CTF-style IAM lab: chain from basic user -> admin role -> wildcard EC2 -> PassRole
+  (overly permissive role, wildcard permissions, privilege escalation).
+
+Parameters:
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: EC2 Key Pair name for SSH access
+
+  InstanceType:
+    Type: String
+    Default: t3.micro
+    Description: EC2 instance type
+    AllowedValues:
+      - t3.micro
+      - t3.small
+      - t3.medium
+
+  LatestAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Description: Latest Amazon Linux 2023 AMI (via SSM public parameter)
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64
+
+  S3BucketPrefix:
+    Type: String
+    Default: insecure-iam-sensitive
+    Description: 'Prefix for sensitive S3 bucket name (must be lowercase; total with account ID ≤63 chars)'
+    AllowedPattern: '^[a-z0-9][a-z0-9.-]{1,40}[a-z0-9]$'
+    ConstraintDescription: 'Lowercase, 3-42 chars.'
+
+Resources:
+  # ----------------------------
+  # CTF ENTRY: Basic Lab User (console + CLI)
+  # ----------------------------
+  LabUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub '${AWS::StackName}-lab-user'
+      Tags:
+        - Key: Name
+          Value: delete-me-iam-lab-user
+        - Key: Purpose
+          Value: SecurityTraining
+
+  LabUserAccessKey:
+    Type: AWS::IAM::AccessKey
+    DependsOn: LabUserAssumeAdminPolicy
+    Properties:
+      UserName: !Ref LabUser
+      Status: Active
+
+  # Minimal policy: enumerate IAM and assume only the "admin" role
+  LabUserAssumeAdminPolicy:
+    Type: AWS::IAM::Policy
+    DependsOn: AdminRole
+    Properties:
+      PolicyName: EnumerateAndAssumeAdmin
+      Users:
+        - !Ref LabUser
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'iam:ListRoles'
+              - 'iam:GetRole'
+              - 'iam:ListRolePolicies'
+              - 'iam:GetRolePolicy'
+            Resource: '*'
+          - Effect: Allow
+            Action: 'sts:AssumeRole'
+            Resource: !GetAtt AdminRole.Arn
+
+  # ----------------------------
+  # SCENARIO 1: Overly Permissive IAM Role (named "admin")
+  # ----------------------------
+  AdminRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: admin
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt LabUser.Arn
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: FullAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: '*'
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: delete-me-admin-role
+        - Key: Purpose
+          Value: SecurityTraining
+
+  # ----------------------------
+  # VPC and Networking Components
+  # ----------------------------
+  VulnerableVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: delete-me-iam-vuln-vpc
+        - Key: Purpose
+          Value: SecurityTraining
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: delete-me-iam-vuln-vpc-igw
+        - Key: Purpose
+          Value: SecurityTraining
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VulnerableVPC
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VulnerableVPC
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: delete-me-iam-vuln-vpc-public-subnet
+        - Key: Purpose
+          Value: SecurityTraining
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VulnerableVPC
+      Tags:
+        - Key: Name
+          Value: delete-me-iam-vuln-vpc-public-routes
+        - Key: Purpose
+          Value: SecurityTraining
+
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  # Security Group for EC2 Instance
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: delete-me-iam-vuln-ec2-sg
+      GroupDescription: Security group for EC2 instance with vulnerable IAM role
+      VpcId: !Ref VulnerableVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: SSH access from anywhere
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP access from anywhere
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic
+      Tags:
+        - Key: Name
+          Value: delete-me-iam-vuln-ec2-sg
+        - Key: Purpose
+          Value: SecurityTraining
+
+  # ----------------------------
+  # SCENARIO 2: Wildcard Permissions on Sensitive Services (EC2 + S3)
+  # ----------------------------
+  SensitiveBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${S3BucketPrefix}-${AWS::AccountId}'
+      Tags:
+        - Key: Name
+          Value: delete-me-iam-sensitive-bucket
+        - Key: Purpose
+          Value: SecurityTraining
+  WildcardPermissionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AWS::StackName}-wildcard-permissions-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: WildcardS3EC2Policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:*'
+                  - 'ec2:*'
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: delete-me-wildcard-permissions-role
+        - Key: Purpose
+          Value: SecurityTraining
+
+  # Instance Profile for Wildcard Permissions Role
+  WildcardPermissionsInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub '${AWS::StackName}-wildcard-permissions-profile'
+      Roles:
+        - !Ref WildcardPermissionsRole
+
+  # EC2 Instance with Wildcard Permissions Role
+  EC2InstanceWithWildcardRole:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPairName
+      IamInstanceProfile: !Ref WildcardPermissionsInstanceProfile
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds:
+        - !Ref EC2SecurityGroup
+      MetadataOptions:
+        HttpEndpoint: enabled
+        HttpTokens: optional
+        HttpPutResponseHopLimit: 1
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          yum update -y
+          # Install AWS CLI if not present
+          yum install -y aws-cli
+          # Create a simple test file
+          echo "This EC2 instance has wildcard S3 and EC2 permissions" > /tmp/test.txt
+      Tags:
+        - Key: Name
+          Value: delete-me-iam-vuln-ec2-instance
+        - Key: Purpose
+          Value: SecurityTraining
+
+  ElasticIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: delete-me-iam-vuln-eip
+        - Key: Purpose
+          Value: SecurityTraining
+
+  ElasticIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref EC2InstanceWithWildcardRole
+      EIP: !Ref ElasticIP
+
+  # ----------------------------
+  # SCENARIO 3: Privilege Escalation via PassRole
+  # ----------------------------
+  # Highly Privileged Role (target for privilege escalation)
+  PrivilegedRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AWS::StackName}-privileged-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AdministratorAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: '*'
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: delete-me-privileged-role
+        - Key: Purpose
+          Value: SecurityTraining
+
+  # Instance Profile for Privileged Role
+  PrivilegedRoleInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub '${AWS::StackName}-privileged-role-profile'
+      Roles:
+        - !Ref PrivilegedRole
+
+  # Vulnerable IAM User with PassRole permission
+  VulnerableIAMUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub '${AWS::StackName}-vulnerable-user'
+      Policies:
+        - PolicyName: PassRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'iam:PassRole'
+                  - 'ec2:RunInstances'
+                  - 'iam:CreateInstanceProfile'
+                  - 'iam:AddRoleToInstanceProfile'
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: delete-me-vulnerable-user
+        - Key: Purpose
+          Value: SecurityTraining
+
+  # Access key for Vulnerable user (Scenario 3 - PassRole); use Outputs for creds
+  VulnerableUserAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref VulnerableIAMUser
+      Status: Active
+
+Outputs:
+  LabUserName:
+    Description: 'CTF entry - IAM user; use CLI with access key below (or set console password in IAM)'
+    Value: !Ref LabUser
+
+  LabUserAccessKeyId:
+    Description: 'Access Key ID for lab user (CLI)'
+    Value: !Ref LabUserAccessKey
+
+  LabUserSecretAccessKey:
+    Description: 'Secret Access Key for lab user (CLI) - store securely'
+    Value: !GetAtt LabUserAccessKey.SecretAccessKey
+
+  AdminRoleName:
+    Description: 'Scenario 1 - Overly permissive role name (assume this after enumerating)'
+    Value: !Ref AdminRole
+
+  AdminRoleArn:
+    Description: 'Scenario 1 - ARN of admin role'
+    Value: !GetAtt AdminRole.Arn
+
+  SensitiveBucketName:
+    Description: 'Scenario 2 - S3 bucket (wildcard role can list/read); Scenario 3 creds in Outputs below'
+    Value: !Ref SensitiveBucket
+
+  VpcId:
+    Description: VPC ID
+    Value: !Ref VulnerableVPC
+    Export:
+      Name: !Sub '${AWS::StackName}-VpcId'
+
+  PublicSubnetId:
+    Description: Public Subnet ID
+    Value: !Ref PublicSubnet
+    Export:
+      Name: !Sub '${AWS::StackName}-PublicSubnetId'
+
+  SecurityGroupId:
+    Description: Security Group ID
+    Value: !Ref EC2SecurityGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-SecurityGroupId'
+
+  EC2InstanceId:
+    Description: 'Scenario 2 - EC2 instance with wildcard S3/EC2 role'
+    Value: !Ref EC2InstanceWithWildcardRole
+    Export:
+      Name: !Sub '${AWS::StackName}-EC2InstanceId'
+
+  EC2PublicIP:
+    Description: 'Scenario 2 - Public IP of EC2 instance (SSH to get wildcard creds)'
+    Value: !Ref ElasticIP
+    Export:
+      Name: !Sub '${AWS::StackName}-EC2PublicIP'
+
+  WildcardRoleName:
+    Description: Name of the IAM role with wildcard permissions (Scenario 2)
+    Value: !Ref WildcardPermissionsRole
+
+  WildcardRoleArn:
+    Description: ARN of the IAM role with wildcard permissions (Scenario 2)
+    Value: !GetAtt WildcardPermissionsRole.Arn
+
+  PrivilegedRoleName:
+    Description: Name of the privileged IAM role (Scenario 3)
+    Value: !Ref PrivilegedRole
+
+  PrivilegedInstanceProfileName:
+    Description: 'Scenario 3 - Instance profile name for run-instances (use with --iam-instance-profile Name=...)'
+    Value: !Ref PrivilegedRoleInstanceProfile
+
+  PrivilegedRoleArn:
+    Description: ARN of the privileged IAM role (Scenario 3)
+    Value: !GetAtt PrivilegedRole.Arn
+
+  VulnerableUserName:
+    Description: 'Scenario 3 - IAM user with PassRole'
+    Value: !Ref VulnerableIAMUser
+
+  VulnerableUserAccessKeyId:
+    Description: 'Scenario 3 - Access Key ID for PassRole user'
+    Value: !Ref VulnerableUserAccessKey
+
+  VulnerableUserSecretAccessKey:
+    Description: 'Scenario 3 - Secret Access Key for PassRole user (store securely)'
+    Value: !GetAtt VulnerableUserAccessKey.SecretAccessKey
+
+  SSHAccess:
+    Description: 'SSH access command'
+    Value: !Sub 'ssh -i ~/.ssh/${KeyPairName}.pem ec2-user@${ElasticIP}'
+
+  StackNote:
+    Description: 'Important - This stack creates vulnerable IAM configurations for educational purposes only'
+    Value: 'All IAM resources should be deleted after completing the exercise'

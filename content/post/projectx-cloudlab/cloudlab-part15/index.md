@@ -118,7 +118,7 @@ I navigated to **AWS Config → Rules → Add rule**.
 
 We're adding two managed rules that directly target the IAM misconfigurations from Attack 5.
 
-### Rule 1 — `iam-policy-no-statements-with-admin-access`
+### Rule 1 — iam-policy-no-statements-with-admin-access
 
 **What it detects:** IAM policies that grant full administrative access — either through the `AdministratorAccess` managed policy or through a custom policy with `Action: "*"` and `Resource: "*"`. This is exactly the `admin` role from Scenario 1.
 
@@ -133,7 +133,7 @@ I selected **Save**.
 
 ---
 
-### Rule 2 — `iam-policy-no-statements-with-full-access`
+### Rule 2 — iam-policy-no-statements-with-full-access
 
 **What it detects:** IAM policies that grant full access to any individual AWS service — for example `s3:*` or `ec2:*` on `Resource: "*"`. This catches the wildcard EC2 instance role from Scenario 2 that gave full S3 and EC2 access.
 

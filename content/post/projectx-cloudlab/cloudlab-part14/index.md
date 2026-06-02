@@ -217,7 +217,7 @@ aws s3 ls s3://<SensitiveBucketName>/ --profile wildcard-role
 
 ---
 
-## Scenario 3 — Privilege Escalation via `iam:PassRole`
+## Scenario 3 — Privilege Escalation via iam:PassRole
 
 ### Step 9 — Configure the Vulnerable User
 

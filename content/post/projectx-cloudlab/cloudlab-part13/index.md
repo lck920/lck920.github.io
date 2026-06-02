@@ -179,7 +179,7 @@ gobuster dir -u $APP_URL \
 
 ---
 
-### Step 5 — Access the Exposed `.env` Files
+### Step 5 — Access the Exposed .env Files
 
 ```bash
 # Fetch the main .env file

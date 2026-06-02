@@ -47,11 +47,11 @@ This guide covers two things in one: creating the Wazuh IAM service account (whi
 
 ---
 
-## Part 1 — Install and Configure AWS CLI on `project-x-sec-box`
+## Part 1 — Install and Configure AWS CLI on project-x-sec-box
 
 Wazuh's S3 integration uses the AWS CLI credentials stored on `project-x-sec-box` to authenticate against the S3 bucket. I needed to install the CLI on the security server and configure it with the `projectx-wazuh-s3-user` access keys.
 
-### Step 1 — Connect to `project-x-sec-box`
+### Step 1 — Connect to project-x-sec-box
 
 SSH into `project-x-sec-box` from your local machine (or via the jumpbox if it's on a private subnet):
 
@@ -207,7 +207,7 @@ This tells ISM to automatically apply this policy to all newly created indices w
 
 ---
 
-### Step 5 — I created the `default` State
+### Step 5 — I created the default State
 
 In the **States** section, select **Add state**.
 
@@ -225,7 +225,7 @@ I selected **Save**.
 
 ---
 
-### Step 6 — I created the `delete` State
+### Step 6 — I created the delete State
 
 I selected **Add state** again.
 

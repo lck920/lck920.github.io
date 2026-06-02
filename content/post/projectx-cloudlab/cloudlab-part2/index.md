@@ -230,7 +230,7 @@ A `My-Desktop-Key-Pair.pem` file will automatically download to your browser's d
 
 ---
 
-### Step 2 — Store the Key in the `.ssh` Directory
+### Step 2 — Store the Key in the .ssh Directory
 
 Open **PowerShell** and create the `.ssh` directory if it doesn't already exist:
 

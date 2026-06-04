@@ -1,5 +1,6 @@
 ---
-title: "Delay No More"
+title: "Welcome"
+date: 2026-06-04
 layout: single
 ---
 

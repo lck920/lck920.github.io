@@ -1,5 +1,5 @@
 ---
-title: "Welcome"
+title: "index"
 layout: single
 ---
 
@@ -35,4 +35,4 @@ Topics include desserts, pasta, sauces, egg dishes, meat recipes and other cooki
 
 This homepage serves as the entry point to my personal documentation. Technical projects and cooking notes are separated into their own sections to keep everything organised and easy to navigate.
 
-More writeups and topics will be added over time.
+More writeups will be added over time.

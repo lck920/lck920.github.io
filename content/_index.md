@@ -1,5 +1,6 @@
 ---
 title: "lck920's Writeups"
+date: 2026-06-04
 layout: single
 ---
 

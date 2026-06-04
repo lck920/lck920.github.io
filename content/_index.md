@@ -1,6 +1,5 @@
 ---
-title: "index"
-date: 2026-06-04
+title: "lck920's Writeups"
 layout: single
 ---
 

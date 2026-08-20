@@ -6,9 +6,9 @@ layout: single
 
 # Welcome
 
-Hi, I’m **lck920**. This site is where I keep notes on things I build, configure, troubleshoot, create and learn along the way.
+Hi, I’m **lck920**. This site is where I keep notes on things I build, configure, troubleshoot and learn along the way.
 
-I use it as a central place to organise my technical writeups, cooking notes and portfolio projects, the areas that I enjoy documenting and improving over time.
+I use it as a central place to organise my technical writeups and cooking notes, two hobbies that I enjoy documenting and improving over time.
 
 ## What You’ll Find Here
 
@@ -32,18 +32,8 @@ Topics include desserts, pasta, sauces, egg dishes, meat recipes and other cooki
 
 ---
 
-### Portfolio
-
-A collection of selected creative work that I’ve completed, including design practice, visual projects, experiments and other work I want to showcase separately from my technical documentation.
-
-This section is more focused on presenting finished work and creative projects, while the writeup sections remain focused on documentation, process and learning notes.
-
-[View Portfolio →](https://lck920.github.io/portfolio/)
-
---- 
-
 ## About This Site
 
-This homepage serves as the entry point to my personal documentation and portfolio. Technical projects, cooking notes and creative work are separated into their own sections to keep everything organised and easy to navigate.
+This homepage serves as the entry point to my personal documentation. Technical projects and cooking notes are separated into their own sections to keep everything organised and easy to navigate.
 
-More sections will be added over time.
+More writeups will be added over time.
